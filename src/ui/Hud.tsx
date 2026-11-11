@@ -7,7 +7,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { multiplierForStreak } from '@/game/economy';
 import type { MaterialId } from '@/game/economy';
 import { dayRecord, selectLevel } from '@/game/engine';
 import { t } from '@/i18n';
@@ -18,13 +17,15 @@ import { colors, font, icons, radius, spacing } from './theme';
 
 const BASIC: MaterialId[] = ['wood', 'stone', 'water', 'energy'];
 
-/** Top bar: Pulses, materials, level + XP bar, streak + multiplier. */
+/**
+ * Top bar: Pulses, materials, level + XP bar, streak + the multiplier applied to today's gains
+ * (the one earned by today's streak starts tomorrow; the Quests screen says so).
+ */
 export function Hud() {
   const game = useGame((s) => s.game);
   const today = useGame((s) => s.today);
   const level = selectLevel(game);
   const multiplier = dayRecord(game, today).multiplier;
-  const nextMultiplier = multiplierForStreak(game.streak.count);
   const materials = [
     ...BASIC,
     ...(['brick', 'glass', 'steel'] as MaterialId[]).filter(
@@ -72,9 +73,7 @@ export function Hud() {
         >
           <Text style={styles.pillIcon}>{icons.streak}</Text>
           <Text style={styles.streakValue}>{game.streak.count}</Text>
-          <Text style={styles.multiplier}>
-            {t.hud.multiplier(Math.max(multiplier, nextMultiplier))}
-          </Text>
+          <Text style={styles.multiplier}>{t.hud.multiplier(multiplier)}</Text>
         </View>
       </View>
 
@@ -118,7 +117,7 @@ const styles = StyleSheet.create({
   streakPill: { backgroundColor: '#FBF0E0', borderColor: '#EBD3AE' },
   pillIcon: { fontSize: font.body },
   pulseValue: { fontSize: font.label, fontWeight: '800', color: colors.pulse },
-  streakValue: { fontSize: font.label, fontWeight: '800', color: colors.streak },
+  streakValue: { fontSize: font.label, fontWeight: '800', color: colors.streakText },
   multiplier: { fontSize: font.small, fontWeight: '700', color: colors.text },
   levelBox: { flex: 1, gap: 4 },
   levelText: { fontSize: font.small, fontWeight: '700', color: colors.text },

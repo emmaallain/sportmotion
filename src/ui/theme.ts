@@ -1,19 +1,24 @@
-/** Natural, soft palette: countryside greens, wood, cream. No neon. */
+/**
+ * Natural, soft palette: countryside greens, wood, cream. No neon.
+ * Every text colour reaches a 4.5:1 contrast on the surfaces it is used on (WCAG AA).
+ */
 export const colors = {
   background: '#F3EEE3',
   surface: '#FFFCF5',
   surfaceAlt: '#EAE3D3',
   border: '#D9D0BC',
   text: '#2E3A2C',
-  textMuted: '#5F6B5A',
+  textMuted: '#525E4D',
   textOnPrimary: '#FFFFFF',
-  primary: '#4F7F4E',
-  primaryDark: '#3B6340',
-  accent: '#B8683F',
-  danger: '#B4443C',
-  pulse: '#C9463D',
-  xp: '#7A6BB0',
+  primary: '#497748',
+  primaryDark: '#355A3A',
+  accent: '#8F4623',
+  danger: '#A33A33',
+  pulse: '#A8352E',
+  xp: '#5E5099',
   streak: '#D9822B',
+  /** Text on light backgrounds: the bright streak orange is too pale to read. */
+  streakText: '#8C4A0E',
   success: '#4F7F4E',
   locked: '#A39E90',
   overlay: 'rgba(30, 36, 28, 0.55)',

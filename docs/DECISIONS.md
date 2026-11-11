@@ -86,3 +86,9 @@ Chaque ligne : la décision, puis sa justification.
 
 - **Adaptateurs à _bridge_ injecté** : `HealthKitProvider` / `HealthConnectProvider` contiennent toute la logique testable (statuts, conversion, dédoublonnage) et attendent un petit module natif ; sans lui ils répondent « bientôt » et ne renvoient rien. Aucune dépendance native n'est ajoutée au MVP, qui reste lançable dans Expo Go et sur le web.
 - **Pas en arrière-plan regroupés par heure**, ignorés quand ils recoupent une séance — évite le double comptage et s'accorde avec la règle « chevauchement : la plus longue compte ».
+
+## Accessibilité et livraison
+
+- **Contrastes vérifiés par un test** (`src/ui/__tests__/contrast.test.ts`, WCAG AA 4,5:1) — plusieurs couleurs de texte ont été foncées après mesure.
+- **Le HUD affiche le multiplicateur appliqué aujourd'hui**, pas celui que la série du jour donnera demain — l'écran Quêtes annonce « ×1,5 dès demain ».
+- **Pull Request non ouverte par l'agent** : le dépôt ne contient que la branche de travail (pas de `main`), et l'environnement a refusé la création de `main` (push sur une autre branche que celle assignée). La description complète est dans `docs/PULL_REQUEST.md`, avec les deux commandes à lancer.
