@@ -50,3 +50,22 @@ Chaque ligne : la décision, puis sa justification.
 - **Panneau « Simuler » toujours visible** (et pas seulement en `__DEV__`) — le simulateur est la source d'activité par défaut du MVP ; sans lui le build web n'est pas jouable. À masquer quand Apple Santé / Health Connect seront branchés.
 - **« Passer au lendemain »** (démo) décale le calendrier du jeu d'un jour pour montrer séries, multiplicateurs et jokers sans attendre minuit ; désactivé en mode Supabase (le serveur valide la date).
 - **Mock Jest maison pour Reanimated** (`__mocks__/react-native-reanimated.tsx`) — le mock officiel de Reanimated 4 exige Worklets natif ou un DOM, absents de Jest.
+
+## Rendu
+
+- **Sprites générés en code, aucun bitmap** — kenney.nl, opengameart.org et freesound.org sont bloqués par le proxy réseau de l'environnement (testé). Chaque élément est décrit par quelques volumes isométriques (`src/render/sprites.ts`) dans une palette naturelle ; passer aux packs Kenney plus tard ne demande que de changer le rendu associé à la clé `sprite` déjà présente dans le catalogue.
+- **Liste d'affichage intermédiaire** (`DrawOp[]`) entre les sprites et Skia — les sprites se testent sans Skia, et la scène est enregistrée une fois dans un `SkPicture` ; le pan/zoom ne change qu'une transformation pilotée par des shared values Reanimated (aucun re-rendu React pendant le geste).
+- **Gestes exécutés sur le thread JS** (`runOnJS(true)`) — même comportement sur le web et en natif, suffisant puisque seul un transform change.
+- **Tri en profondeur topologique** des emprises (et pas un simple tri par x+y) — nécessaire pour les grands bâtiments (terrain de foot 4×3) voisins de petits éléments.
+- **Routes : on touche les tuiles une à une**, le mode reste actif jusqu'à « Terminé ». Autres éléments : fantôme pré-positionné sur un emplacement valide, on touche la carte pour le déplacer puis « Poser ».
+- **Sélection tolérante** : toucher les murs d'un bâtiment (au-dessus de son emprise) le sélectionne.
+- **Vignettes de la boutique** rendues par Skia dans une seule surface hors écran partagée — une surface par vignette épuisait les contextes WebGL du navigateur et vidait la carte.
+- **Passage d'ère automatique** dès que les conditions sont remplies (avec une célébration) ; l'écran Progression garde un bouton de secours.
+- **Règle ESLint `react-hooks/preserve-manual-memoization` désactivée** — elle ne concerne que le React Compiler, non activé ici.
+
+## Sons
+
+- **Sons synthétisés par script** (`scripts/generate-audio.ts`, WAV mono 22 kHz) — freesound.org est bloqué ; des sons générés par notre propre code sont CC0 sans ambiguïté. Les boucles d'ambiance sont raccordées sans clic (fondu de la queue dans la tête). Ils n'ont pas pu être écoutés dans cet environnement (pas de sortie audio) : seuls le niveau, la continuité de boucle et le chargement ont été vérifiés.
+- **Mode silencieux respecté** via `playsInSilentMode: false`, et `mixWithOthers` pour ne pas couper la musique du joueur. L'ambiance se met en pause en arrière-plan.
+- **Sur le web, l'ambiance démarre au premier clic** — les navigateurs interdisent la lecture automatique.
+- **Volumes réglés par pas de 10 %** avec deux boutons −/＋ plutôt qu'un curseur — pas de dépendance supplémentaire, cibles tactiles larges, accessible au lecteur d'écran (`adjustable`).

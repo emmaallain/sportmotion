@@ -5,6 +5,7 @@ import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AudioManager } from '@/audio/AudioManager';
 import { useGame } from '@/state/gameStore';
 import { GameEffects } from '@/ui/GameEffects';
 import { Overlays } from '@/ui/Overlays';
@@ -43,6 +44,7 @@ export default function RootLayout() {
               <Stack.Screen name="shop" options={{ presentation: 'modal' }} />
               <Stack.Screen name="interior/[id]" />
             </Stack>
+            <AudioManager />
             <GameEffects />
             <Overlays />
           </>
