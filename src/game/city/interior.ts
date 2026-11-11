@@ -1,0 +1,85 @@
+import type { FurnitureItem, RoomType } from '../catalog/types';
+import { footprint, tilesOf } from './placement';
+import type { Rotation } from './placement';
+
+export const INTERIOR_SIZE = 8;
+export const ROOM_SIZE = 4;
+
+/** Each purchased room takes the next 4×4 quadrant of the 8×8 interior. */
+export const ROOM_ORIGINS: readonly (readonly [number, number])[] = [
+  [0, 0],
+  [4, 0],
+  [0, 4],
+  [4, 4],
+];
+
+export interface PlacedFurniture {
+  id: string;
+  furnitureId: string;
+  x: number;
+  y: number;
+  rot: Rotation;
+}
+
+export interface Interior {
+  rooms: RoomType[];
+  furniture: PlacedFurniture[];
+}
+
+export const EMPTY_INTERIOR: Interior = { rooms: [], furniture: [] };
+
+export type FurnitureLookup = (id: string) => FurnitureItem | undefined;
+
+/** Index of the purchased room containing the tile, or -1. */
+export function roomAt(x: number, y: number, roomCount: number): number {
+  if (x < 0 || y < 0 || x >= INTERIOR_SIZE || y >= INTERIOR_SIZE) return -1;
+  const index = ROOM_ORIGINS.findIndex(
+    ([ox, oy]) => x >= ox && x < ox + ROOM_SIZE && y >= oy && y < oy + ROOM_SIZE,
+  );
+  return index >= 0 && index < roomCount ? index : -1;
+}
+
+export type FurnitureCheck = { ok: true } | { ok: false; reason: 'out_of_bounds' | 'occupied' };
+
+/** Furniture must sit entirely inside one purchased room, on free tiles. */
+export function canPlaceFurniture(
+  interior: Interior,
+  lookup: FurnitureLookup,
+  item: FurnitureItem,
+  x: number,
+  y: number,
+  rot: Rotation,
+  ignoreId?: string,
+): FurnitureCheck {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return { ok: false, reason: 'out_of_bounds' };
+  const [w, h] = footprint(item.size, rot);
+  const tiles = tilesOf(x, y, w, h);
+  const rooms = tiles.map(([tx, ty]) => roomAt(tx, ty, interior.rooms.length));
+  if (rooms.some((r) => r < 0) || rooms.some((r) => r !== rooms[0])) {
+    return { ok: false, reason: 'out_of_bounds' };
+  }
+  const taken = new Set<string>();
+  for (const placed of interior.furniture) {
+    if (placed.id === ignoreId) continue;
+    const other = lookup(placed.furnitureId);
+    if (!other) continue;
+    const [ow, oh] = footprint(other.size, placed.rot);
+    for (const [tx, ty] of tilesOf(placed.x, placed.y, ow, oh)) taken.add(`${tx},${ty}`);
+  }
+  if (tiles.some(([tx, ty]) => taken.has(`${tx},${ty}`))) return { ok: false, reason: 'occupied' };
+  return { ok: true };
+}
+
+export function furnitureAt(
+  interior: Interior,
+  lookup: FurnitureLookup,
+  x: number,
+  y: number,
+): PlacedFurniture | undefined {
+  return interior.furniture.find((placed) => {
+    const item = lookup(placed.furnitureId);
+    if (!item) return false;
+    const [w, h] = footprint(item.size, placed.rot);
+    return x >= placed.x && x < placed.x + w && y >= placed.y && y < placed.y + h;
+  });
+}

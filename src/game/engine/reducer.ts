@@ -1,0 +1,433 @@
+import { getCityItem, getFurniture, getRecipe, getRoom } from '../catalog/index';
+import type { Cost } from '../catalog/types';
+import { computeCityFacts } from '../city/facts';
+import { EXTRA_PLOT_MIN_ERA, nextPlotPrice } from '../city/grid';
+import { EMPTY_INTERIOR, canPlaceFurniture } from '../city/interior';
+import { canPlace } from '../city/placement';
+import { rollChest } from '../economy/chest';
+import { addDays } from '../economy/dates';
+import { applyMultiplier, evaluateDay } from '../economy/day';
+import { completeDay, multiplierForStreak, settleMissedDays } from '../economy/streak';
+import { ALL_MATERIALS, BASIC_MATERIALS } from '../economy/types';
+import type { BasicMaterials, MaterialId, Materials, QuestId } from '../economy/types';
+import { checkEraAdvance, lockReason } from '../progression/eras';
+import { levelFromXp } from '../progression/levels';
+import type { CommandContext, CommandResult, GameCommand, GameError, GameEvent } from './commands';
+import { DAY_HISTORY_LENGTH, SELL_REFUND_RATE, STARTER_BONUS, emptyDay } from './state';
+import type { Balances, DayRecord, GameState } from './state';
+
+const fail = (error: GameError): CommandResult => ({ ok: false, error });
+
+export function canAfford(balances: Balances, cost: Cost, quantity = 1): boolean {
+  if (balances.pulses < cost.pulses * quantity) return false;
+  for (const material of ALL_MATERIALS) {
+    const need = (cost.materials?.[material] ?? 0) * quantity;
+    if (need > 0 && balances.materials[material] < need) return false;
+  }
+  return true;
+}
+
+function addMaterials(
+  materials: Materials,
+  delta: Partial<Record<MaterialId, number>>,
+  sign = 1,
+): Materials {
+  const next = { ...materials };
+  for (const material of ALL_MATERIALS) next[material] += sign * (delta[material] ?? 0);
+  return next;
+}
+
+function pay(balances: Balances, cost: Cost, xp: number): Balances {
+  return {
+    pulses: balances.pulses - cost.pulses,
+    xp: balances.xp + xp,
+    materials: addMaterials(balances.materials, cost.materials ?? {}, -1),
+  };
+}
+
+const playerLevel = (state: GameState) => levelFromXp(state.balances.xp).level;
+
+function isPosition(x: unknown, y: unknown, rot: unknown): boolean {
+  return Number.isInteger(x) && Number.isInteger(y) && (rot === 0 || rot === 1);
+}
+
+function isId(id: unknown): id is string {
+  return typeof id === 'string' && id.length > 0 && id.length <= 64;
+}
+
+/** Today's record, created with the multiplier of the streak as it stands this morning. */
+export function dayRecord(state: GameState, today: string): DayRecord {
+  return state.days[today] ?? emptyDay(today, multiplierForStreak(state.streak.count));
+}
+
+function settle(state: GameState, ctx: CommandContext, events: GameEvent[]): GameState {
+  const { streak, jokersUsed, broken } = settleMissedDays(state.streak, ctx.today);
+  if (jokersUsed > 0) events.push({ type: 'joker_used', count: jokersUsed });
+  if (broken) events.push({ type: 'streak_broken' });
+  if (streak === state.streak) return state;
+  return { ...state, streak };
+}
+
+function pruneDays(days: Record<string, DayRecord>, today: string): Record<string, DayRecord> {
+  const oldest = addDays(today, -DAY_HISTORY_LENGTH);
+  const keys = Object.keys(days);
+  if (!keys.some((k) => k < oldest)) return days;
+  return Object.fromEntries(keys.filter((k) => k >= oldest).map((k) => [k, days[k] as DayRecord]));
+}
+
+function addActivity(
+  state: GameState,
+  command: Extract<GameCommand, { type: 'add_activity' }>,
+  ctx: CommandContext,
+  events: GameEvent[],
+): CommandResult {
+  const { activity } = command;
+  if (!activity || !isId(activity.id)) return fail({ code: 'invalid' });
+  const day = dayRecord(state, ctx.today);
+  if (day.activities.some((a) => a.id === activity.id)) {
+    return fail({ code: 'activity_rejected', reason: 'duplicate' });
+  }
+
+  const before = evaluateDay(day.activities);
+  const activities = [...day.activities, activity];
+  const after = evaluateDay(activities);
+  const rejection = after.rejected.find((r) => r.id === activity.id);
+  if (rejection) return fail({ code: 'activity_rejected', reason: rejection.reason });
+
+  // Grant only what exceeds what this day already paid: the evaluation is idempotent.
+  const granted = day.granted;
+  const basePulses = Math.max(granted.basePulses, after.basePulses);
+  const pulses = Math.max(granted.pulses, applyMultiplier(basePulses, day.multiplier));
+  const xp = Math.max(granted.xp, after.xp);
+  const materials = { ...granted.materials };
+  const materialDelta: BasicMaterials = { wood: 0, stone: 0, water: 0, energy: 0 };
+  for (const m of BASIC_MATERIALS) {
+    materials[m] = Math.max(granted.materials[m], after.materials[m]);
+    materialDelta[m] = materials[m] - granted.materials[m];
+  }
+
+  const accepted = after.accepted.find((a) => a.id === activity.id);
+  events.push({
+    type: 'activity_counted',
+    activityId: activity.id,
+    pulses: pulses - granted.pulses,
+    xp: xp - granted.xp,
+    materials: materialDelta,
+    reclassified: accepted?.reclassified ?? false,
+    truncated: accepted !== undefined && accepted.countedMin < activity.durationMin,
+  });
+  for (const quest of Object.keys(after.quests) as QuestId[]) {
+    if (after.quests[quest].done && !before.quests[quest].done) {
+      events.push({ type: 'quest_completed', quest });
+    }
+  }
+
+  let streak = state.streak;
+  let completed = day.completed;
+  let chest = day.chest;
+  if (after.fullDay && !day.completed) {
+    completed = true;
+    chest = 'ready';
+    streak = completeDay(streak, ctx.today);
+    events.push({ type: 'full_day', streak: streak.count });
+  }
+
+  const nextDay: DayRecord = {
+    ...day,
+    activities,
+    granted: { basePulses, pulses, xp, materials },
+    completed,
+    chest,
+  };
+  return {
+    ok: true,
+    events,
+    state: {
+      ...state,
+      streak,
+      balances: {
+        pulses: state.balances.pulses + (pulses - granted.pulses),
+        xp: state.balances.xp + (xp - granted.xp),
+        materials: addMaterials(state.balances.materials, materialDelta),
+      },
+      days: pruneDays({ ...state.days, [ctx.today]: nextDay }, ctx.today),
+    },
+  };
+}
+
+function run(
+  state: GameState,
+  command: GameCommand,
+  ctx: CommandContext,
+  events: GameEvent[],
+): CommandResult {
+  const done = (next: GameState): CommandResult => ({ ok: true, state: next, events });
+  const player = { era: state.era, level: playerLevel(state) };
+
+  switch (command.type) {
+    case 'tick':
+      return done(state);
+
+    case 'claim_starter_bonus': {
+      if (state.starterBonusClaimed) return done(state);
+      return done({
+        ...state,
+        starterBonusClaimed: true,
+        balances: {
+          ...state.balances,
+          pulses: state.balances.pulses + STARTER_BONUS.pulses,
+          materials: addMaterials(state.balances.materials, STARTER_BONUS.materials),
+        },
+      });
+    }
+
+    case 'finish_onboarding':
+      return done(state.onboardingDone ? state : { ...state, onboardingDone: true });
+
+    case 'add_activity':
+      return addActivity(state, command, ctx, events);
+
+    case 'open_chest': {
+      const day = state.days[ctx.today];
+      if (!day || day.chest !== 'ready') return fail({ code: 'no_chest' });
+      const loot = rollChest(ctx.rand, state.era);
+      events.push({ type: 'chest_opened', loot });
+      return done({
+        ...state,
+        balances: { ...state.balances, materials: addMaterials(state.balances.materials, loot) },
+        days: { ...state.days, [ctx.today]: { ...day, chest: 'opened', chestLoot: loot } },
+      });
+    }
+
+    case 'place_item': {
+      const item = getCityItem(command.itemId);
+      if (!item) return fail({ code: 'unknown_item' });
+      if (!isId(command.id) || !isPosition(command.x, command.y, command.rot)) {
+        return fail({ code: 'invalid' });
+      }
+      if (state.city.items.some((p) => p.id === command.id)) return fail({ code: 'invalid' });
+      const lock = lockReason(item, player);
+      if (lock) return fail({ code: lock.type === 'coming_soon' ? 'coming_soon' : 'locked' });
+      if (!canAfford(state.balances, item.cost)) return fail({ code: 'insufficient_funds' });
+      const rot = item.rotatable ? command.rot : 0;
+      const check = canPlace(state.city, getCityItem, item, command.x, command.y, rot);
+      if (!check.ok) return fail({ code: 'placement', reason: check.reason });
+      events.push({ type: 'purchased', pulses: item.cost.pulses, xp: item.xp });
+      return done({
+        ...state,
+        balances: pay(state.balances, item.cost, item.xp),
+        city: {
+          ...state.city,
+          items: [
+            ...state.city.items,
+            { id: command.id, itemId: item.id, x: command.x, y: command.y, rot },
+          ],
+        },
+      });
+    }
+
+    case 'move_item': {
+      const placed = state.city.items.find((p) => p.id === command.id);
+      const item = placed && getCityItem(placed.itemId);
+      if (!placed || !item) return fail({ code: 'not_found' });
+      if (!isPosition(command.x, command.y, command.rot)) return fail({ code: 'invalid' });
+      const rot = item.rotatable ? command.rot : 0;
+      const check = canPlace(state.city, getCityItem, item, command.x, command.y, rot, placed.id);
+      if (!check.ok) return fail({ code: 'placement', reason: check.reason });
+      return done({
+        ...state,
+        city: {
+          ...state.city,
+          items: state.city.items.map((p) =>
+            p.id === placed.id ? { ...p, x: command.x, y: command.y, rot } : p,
+          ),
+        },
+      });
+    }
+
+    case 'sell_item': {
+      const placed = state.city.items.find((p) => p.id === command.id);
+      const item = placed && getCityItem(placed.itemId);
+      if (!placed || !item) return fail({ code: 'not_found' });
+      const refund = Math.floor(item.cost.pulses * SELL_REFUND_RATE);
+      const interiors = { ...state.interiors };
+      delete interiors[placed.id];
+      events.push({ type: 'sold', pulses: refund });
+      return done({
+        ...state,
+        interiors,
+        balances: { ...state.balances, pulses: state.balances.pulses + refund },
+        city: { ...state.city, items: state.city.items.filter((p) => p.id !== placed.id) },
+      });
+    }
+
+    case 'buy_plot': {
+      const price = nextPlotPrice(state.city.plots);
+      if (price === null) return fail({ code: 'max_plots' });
+      if (state.era < EXTRA_PLOT_MIN_ERA) return fail({ code: 'locked' });
+      if (state.balances.pulses < price) return fail({ code: 'insufficient_funds' });
+      events.push({ type: 'purchased', pulses: price, xp: 0 });
+      return done({
+        ...state,
+        balances: { ...state.balances, pulses: state.balances.pulses - price },
+        city: { ...state.city, plots: state.city.plots + 1 },
+      });
+    }
+
+    case 'craft': {
+      const recipe = getRecipe(command.recipeId);
+      if (!recipe) return fail({ code: 'unknown_item' });
+      const quantity = command.quantity;
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) {
+        return fail({ code: 'invalid' });
+      }
+      if (lockReason({ era: recipe.era, level: 1 }, player)) return fail({ code: 'locked' });
+      if (!state.city.items.some((p) => p.itemId === recipe.building)) {
+        return fail({ code: 'missing_building' });
+      }
+      const cost: Cost = { pulses: 0, materials: recipe.inputs };
+      if (!canAfford(state.balances, cost, quantity)) return fail({ code: 'insufficient_funds' });
+      let materials = state.balances.materials;
+      for (let i = 0; i < quantity; i++) materials = addMaterials(materials, recipe.inputs, -1);
+      materials = addMaterials(materials, { [recipe.output]: quantity });
+      events.push({ type: 'crafted', material: recipe.output, quantity });
+      return done({ ...state, balances: { ...state.balances, materials } });
+    }
+
+    case 'buy_room': {
+      const house = state.city.items.find((p) => p.id === command.houseId);
+      const houseItem = house && getCityItem(house.itemId);
+      const room = getRoom(command.room);
+      if (!house || !houseItem || houseItem.maxRooms === 0) return fail({ code: 'not_found' });
+      if (!room) return fail({ code: 'unknown_item' });
+      const interior = state.interiors[house.id] ?? EMPTY_INTERIOR;
+      if (interior.rooms.length >= houseItem.maxRooms) return fail({ code: 'max_rooms' });
+      if (interior.rooms.includes(room.id)) return fail({ code: 'room_owned' });
+      if (!canAfford(state.balances, room.cost)) return fail({ code: 'insufficient_funds' });
+      events.push({ type: 'purchased', pulses: room.cost.pulses, xp: room.xp });
+      return done({
+        ...state,
+        balances: pay(state.balances, room.cost, room.xp),
+        interiors: {
+          ...state.interiors,
+          [house.id]: { ...interior, rooms: [...interior.rooms, room.id] },
+        },
+      });
+    }
+
+    case 'place_furniture': {
+      const interior = state.interiors[command.houseId];
+      const item = getFurniture(command.furnitureId);
+      if (!interior || !state.city.items.some((p) => p.id === command.houseId)) {
+        return fail({ code: 'not_found' });
+      }
+      if (!item) return fail({ code: 'unknown_item' });
+      if (!isId(command.id) || !isPosition(command.x, command.y, command.rot)) {
+        return fail({ code: 'invalid' });
+      }
+      if (interior.furniture.some((f) => f.id === command.id)) return fail({ code: 'invalid' });
+      if (!canAfford(state.balances, item.cost)) return fail({ code: 'insufficient_funds' });
+      const rot = item.rotatable ? command.rot : 0;
+      const check = canPlaceFurniture(interior, getFurniture, item, command.x, command.y, rot);
+      if (!check.ok) return fail({ code: 'placement', reason: check.reason });
+      events.push({ type: 'purchased', pulses: item.cost.pulses, xp: item.xp });
+      return done({
+        ...state,
+        balances: pay(state.balances, item.cost, item.xp),
+        interiors: {
+          ...state.interiors,
+          [command.houseId]: {
+            ...interior,
+            furniture: [
+              ...interior.furniture,
+              { id: command.id, furnitureId: item.id, x: command.x, y: command.y, rot },
+            ],
+          },
+        },
+      });
+    }
+
+    case 'move_furniture': {
+      const interior = state.interiors[command.houseId];
+      const placed = interior?.furniture.find((f) => f.id === command.id);
+      const item = placed && getFurniture(placed.furnitureId);
+      if (!interior || !placed || !item) return fail({ code: 'not_found' });
+      if (!isPosition(command.x, command.y, command.rot)) return fail({ code: 'invalid' });
+      const rot = item.rotatable ? command.rot : 0;
+      const check = canPlaceFurniture(
+        interior,
+        getFurniture,
+        item,
+        command.x,
+        command.y,
+        rot,
+        placed.id,
+      );
+      if (!check.ok) return fail({ code: 'placement', reason: check.reason });
+      return done({
+        ...state,
+        interiors: {
+          ...state.interiors,
+          [command.houseId]: {
+            ...interior,
+            furniture: interior.furniture.map((f) =>
+              f.id === placed.id ? { ...f, x: command.x, y: command.y, rot } : f,
+            ),
+          },
+        },
+      });
+    }
+
+    case 'sell_furniture': {
+      const interior = state.interiors[command.houseId];
+      const placed = interior?.furniture.find((f) => f.id === command.id);
+      const item = placed && getFurniture(placed.furnitureId);
+      if (!interior || !placed || !item) return fail({ code: 'not_found' });
+      const refund = Math.floor(item.cost.pulses * SELL_REFUND_RATE);
+      events.push({ type: 'sold', pulses: refund });
+      return done({
+        ...state,
+        balances: { ...state.balances, pulses: state.balances.pulses + refund },
+        interiors: {
+          ...state.interiors,
+          [command.houseId]: {
+            ...interior,
+            furniture: interior.furniture.filter((f) => f.id !== placed.id),
+          },
+        },
+      });
+    }
+
+    case 'advance_era': {
+      const facts = computeCityFacts(state.city, getCityItem);
+      const check = checkEraAdvance(state.era, player.level, facts);
+      if (!check.ok) {
+        return fail({ code: check.reason === 'requirements' ? 'era_requirements' : 'coming_soon' });
+      }
+      events.push({ type: 'era_advanced', era: check.next });
+      return done({ ...state, era: check.next });
+    }
+
+    default:
+      return fail({ code: 'invalid' });
+  }
+}
+
+/**
+ * The single entry point for every game mutation. Pure: the same reducer runs on the device
+ * (local mode, optimistic updates) and in the `game-command` edge function (authoritative).
+ */
+export function applyCommand(
+  state: GameState,
+  command: GameCommand,
+  ctx: CommandContext,
+): CommandResult {
+  const events: GameEvent[] = [];
+  const levelBefore = playerLevel(state);
+  const settled = settle(state, ctx, events);
+  const result = run(settled, command, ctx, events);
+  if (!result.ok) return result;
+  const levelAfter = playerLevel(result.state);
+  if (levelAfter > levelBefore) result.events.push({ type: 'level_up', level: levelAfter });
+  return result;
+}

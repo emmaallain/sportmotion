@@ -1,0 +1,102 @@
+import type { CityItem } from '../catalog/types';
+import { plotAt, tileKey } from './grid';
+
+export type Rotation = 0 | 1;
+
+export interface PlacedItem {
+  id: string;
+  itemId: string;
+  x: number;
+  y: number;
+  /** 1 = footprint rotated by 90° (width and depth swapped). */
+  rot: Rotation;
+}
+
+export interface CityState {
+  plots: number;
+  items: PlacedItem[];
+}
+
+export type ItemLookup = (itemId: string) => CityItem | undefined;
+
+export function footprint(size: readonly [number, number], rot: Rotation): [number, number] {
+  return rot === 1 ? [size[1], size[0]] : [size[0], size[1]];
+}
+
+export function tilesOf(x: number, y: number, w: number, h: number): [number, number][] {
+  const tiles: [number, number][] = [];
+  for (let dx = 0; dx < w; dx++) for (let dy = 0; dy < h; dy++) tiles.push([x + dx, y + dy]);
+  return tiles;
+}
+
+/** Map of "x,y" → placed item occupying the tile. */
+export function buildOccupancy(city: CityState, lookup: ItemLookup): Map<string, PlacedItem> {
+  const occupancy = new Map<string, PlacedItem>();
+  for (const placed of city.items) {
+    const item = lookup(placed.itemId);
+    if (!item) continue;
+    const [w, h] = footprint(item.size, placed.rot);
+    for (const [tx, ty] of tilesOf(placed.x, placed.y, w, h))
+      occupancy.set(tileKey(tx, ty), placed);
+  }
+  return occupancy;
+}
+
+export type PlacementError = 'out_of_bounds' | 'occupied' | 'needs_road';
+export type PlacementCheck = { ok: true } | { ok: false; reason: PlacementError };
+
+const NEIGHBOURS: readonly [number, number][] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+/**
+ * Can `item` stand at (x, y)? Every tile must be on an owned plot and free, and buildings
+ * that need a road must touch one. `ignoreId` lets an item be moved over its own footprint.
+ */
+export function canPlace(
+  city: CityState,
+  lookup: ItemLookup,
+  item: CityItem,
+  x: number,
+  y: number,
+  rot: Rotation,
+  ignoreId?: string,
+): PlacementCheck {
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return { ok: false, reason: 'out_of_bounds' };
+  const [w, h] = footprint(item.size, rot);
+  const tiles = tilesOf(x, y, w, h);
+  if (tiles.some(([tx, ty]) => plotAt(tx, ty, city.plots) < 0)) {
+    return { ok: false, reason: 'out_of_bounds' };
+  }
+  const occupancy = buildOccupancy(city, lookup);
+  if (
+    tiles.some(([tx, ty]) => {
+      const other = occupancy.get(tileKey(tx, ty));
+      return other !== undefined && other.id !== ignoreId;
+    })
+  ) {
+    return { ok: false, reason: 'occupied' };
+  }
+  if (item.requiresRoad) {
+    const touchesRoad = tiles.some(([tx, ty]) =>
+      NEIGHBOURS.some(([dx, dy]) => {
+        const other = occupancy.get(tileKey(tx + dx, ty + dy));
+        return other !== undefined && lookup(other.itemId)?.kind === 'road';
+      }),
+    );
+    if (!touchesRoad) return { ok: false, reason: 'needs_road' };
+  }
+  return { ok: true };
+}
+
+export function itemAt(
+  city: CityState,
+  lookup: ItemLookup,
+  x: number,
+  y: number,
+): PlacedItem | undefined {
+  return buildOccupancy(city, lookup).get(tileKey(x, y));
+}

@@ -1,0 +1,7 @@
+import type { Recipe } from './types';
+
+export const RECIPES: readonly Recipe[] = [
+  { id: 'brick', output: 'brick', inputs: { stone: 2, water: 1 }, building: 'brickworks', era: 2 },
+  { id: 'glass', output: 'glass', inputs: { water: 2, energy: 1 }, building: 'glassworks', era: 3 },
+  { id: 'steel', output: 'steel', inputs: { stone: 2, energy: 2 }, building: 'foundry', era: 3 },
+];

@@ -1,0 +1,53 @@
+export const PLOT_SIZE = 16;
+
+/** Position (in plot units) of the n-th plot. Plots are bought in this order. */
+export const PLOT_LAYOUT: readonly (readonly [number, number])[] = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [2, 0],
+  [2, 1],
+  [0, 2],
+  [1, 2],
+  [2, 2],
+];
+
+export const MAX_PLOTS = PLOT_LAYOUT.length;
+export const FIRST_EXTRA_PLOT_PRICE = 300;
+/** A second plot is part of the Bourg era. */
+export const EXTRA_PLOT_MIN_ERA = 2;
+
+/** Price of the next plot when `owned` plots are owned: 300, 600, 1 200… */
+export function nextPlotPrice(owned: number): number | null {
+  if (owned >= MAX_PLOTS) return null;
+  return FIRST_EXTRA_PLOT_PRICE * Math.pow(2, Math.max(0, owned - 1));
+}
+
+export interface PlotRect {
+  index: number;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export function plotRect(index: number): PlotRect {
+  const pos = PLOT_LAYOUT[index];
+  if (!pos) throw new Error(`No plot ${index}`);
+  return { index, x: pos[0] * PLOT_SIZE, y: pos[1] * PLOT_SIZE, size: PLOT_SIZE };
+}
+
+export function ownedPlots(count: number): PlotRect[] {
+  return Array.from({ length: Math.min(count, MAX_PLOTS) }, (_, i) => plotRect(i));
+}
+
+/** Index of the owned plot containing the tile, or -1. */
+export function plotAt(x: number, y: number, plots: number): number {
+  if (x < 0 || y < 0) return -1;
+  const px = Math.floor(x / PLOT_SIZE);
+  const py = Math.floor(y / PLOT_SIZE);
+  const index = PLOT_LAYOUT.findIndex((p) => p[0] === px && p[1] === py);
+  return index >= 0 && index < plots ? index : -1;
+}
+
+export const tileKey = (x: number, y: number) => `${x},${y}`;
