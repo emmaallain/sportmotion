@@ -1,0 +1,8 @@
+node_modules
+dist
+.expo
+public
+coverage
+package-lock.json
+supabase/functions/_shared
+docs/GAME_DESIGN.md

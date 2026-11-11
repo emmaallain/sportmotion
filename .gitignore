@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# project
+public/canvaskit.wasm
+coverage/
+.env
