@@ -120,6 +120,11 @@ export const fr = {
       duplicate: 'Cette activité a déjà été comptée.',
     } as Record<string, string>,
     network: 'Connexion impossible. Réessayez dans un instant.',
+    bad_request: 'Le serveur n’a pas compris cette action.',
+    bad_day: 'La date de l’appareil ne correspond pas à celle du serveur.',
+    mock_not_allowed: 'Les activités simulées sont désactivées sur ce serveur.',
+    activity_out_of_window: 'Cette activité est trop ancienne pour être comptée.',
+    command_not_allowed: 'Action non autorisée.',
   },
   quests: {
     title: 'Quêtes du jour',

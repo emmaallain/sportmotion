@@ -1,12 +1,21 @@
-import type { CommandContext, GameCommand, GameError, GameState } from '@/game/engine';
+import type {
+  CommandContext,
+  GameCommand,
+  GameError,
+  GameState,
+  ServerErrorCode,
+} from '@/game/engine';
 
 export type RepositoryMode = 'local' | 'supabase';
+
+/** Engine errors, plus what only a server can answer (network, refused day, mock data…). */
+export type RemoteError = GameError | { code: 'network' } | { code: ServerErrorCode };
 
 export type RemoteResult =
   /** The server accepted the command; `state` is authoritative. */
   | { ok: true; state: GameState }
   /** The server refused the command; `state` (when present) is what the client must roll back to. */
-  | { ok: false; error: GameError | { code: 'network' }; state?: GameState };
+  | { ok: false; error: RemoteError; state?: GameState };
 
 /**
  * Persistence boundary of the game.

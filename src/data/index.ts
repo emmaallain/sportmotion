@@ -1,21 +1,20 @@
+import { isSupabaseConfigured } from './env';
 import { LocalRepository } from './localRepository';
 import type { GameRepository } from './repository';
+import { getSupabase } from './supabaseClient';
+import { SupabaseRepository } from './supabaseRepository';
 
-export type { GameRepository, RemoteResult, RepositoryMode } from './repository';
-
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
-/** The backend is used only when both environment variables are present. */
-export const isSupabaseConfigured = (): boolean =>
-  SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
+export type { GameRepository, RemoteError, RemoteResult, RepositoryMode } from './repository';
+export { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from './env';
 
 let repository: GameRepository | null = null;
 
 /** Local (AsyncStorage) by default; Supabase when the environment is configured. */
 export function getRepository(): GameRepository {
   if (repository) return repository;
-  repository = new LocalRepository();
+  repository = isSupabaseConfigured()
+    ? new SupabaseRepository(getSupabase())
+    : new LocalRepository();
   return repository;
 }
 

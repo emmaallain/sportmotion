@@ -69,3 +69,20 @@ Chaque ligne : la décision, puis sa justification.
 - **Mode silencieux respecté** via `playsInSilentMode: false`, et `mixWithOthers` pour ne pas couper la musique du joueur. L'ambiance se met en pause en arrière-plan.
 - **Sur le web, l'ambiance démarre au premier clic** — les navigateurs interdisent la lecture automatique.
 - **Volumes réglés par pas de 10 %** avec deux boutons −/＋ plutôt qu'un curseur — pas de dépendance supplémentaire, cibles tactiles larges, accessible au lecteur d'écran (`adjustable`).
+
+## Backend
+
+- **Instantané `game_states` (jsonb) comme source de vérité + tables projetées** (`balances`, `activities`, `day_ledgers`, `buildings`) — le serveur exécute exactement le réducteur de l'app sur l'instantané, ce qui évite toute divergence de règles ; les tables normalisées demandées par le cahier des charges existent et sont tenues à jour dans la même requête, pour la lecture et les futures fonctions sociales.
+- **Deux edge functions** : `validate-activity` (imposée par le game design) et `game-command` pour les dépenses — si le client ne peut pas écrire ses soldes, les achats doivent eux aussi être validés côté serveur.
+- **Verrou optimiste** (`version`) avec 3 tentatives — deux requêtes simultanées ne peuvent pas dépenser deux fois les mêmes Pulses.
+- **Source `mock` refusée par le serveur** sauf `ALLOW_MOCK_ACTIVITIES=true` — sinon le simulateur serait une triche légale en ligne.
+- **Le « jour » vient de l'appareil mais est borné** (UTC−12 … UTC+14, jamais en arrière) — le serveur ne connaît pas le fuseau du joueur ; cela limite la triche sur la date à quelques heures.
+- **Compte invité anonyme par défaut**, e-mail + mot de passe associables ensuite — on joue sans friction, on ne perd pas sa ville.
+- **Copie générée de `src/game` dans `supabase/functions/_shared/game`**, versionnée — Deno exige des extensions `.ts` et les fonctions se déploient depuis `supabase/` seul ; un test garantit que la copie est à jour.
+- **Tests de la base dans PGlite** (Postgres en WebAssembly) avec un faux schéma `auth` — ni Docker ni projet Supabase n'étaient accessibles ; lancé par `node:test` car PGlite ne tourne pas dans le bac à sable de Jest.
+- **Non vérifié contre un vrai projet Supabase** — aucun identifiant disponible ; documenté dans `docs/BACKEND.md`.
+
+## Santé
+
+- **Adaptateurs à _bridge_ injecté** : `HealthKitProvider` / `HealthConnectProvider` contiennent toute la logique testable (statuts, conversion, dédoublonnage) et attendent un petit module natif ; sans lui ils répondent « bientôt » et ne renvoient rien. Aucune dépendance native n'est ajoutée au MVP, qui reste lançable dans Expo Go et sur le web.
+- **Pas en arrière-plan regroupés par heure**, ignorés quand ils recoupent une séance — évite le double comptage et s'accorde avec la règle « chevauchement : la plus longue compte ».

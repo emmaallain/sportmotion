@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 
 import { getRepository } from '@/data';
-import type { GameRepository } from '@/data';
+import type { GameRepository, RemoteError } from '@/data';
 import { applyCommand, createInitialState } from '@/game/engine';
-import type { CommandResult, GameCommand, GameError, GameEvent, GameState } from '@/game/engine';
+import type { CommandResult, GameCommand, GameEvent, GameState } from '@/game/engine';
 
 import { currentDayKey } from './clock';
 
 type EventListener = (events: GameEvent[], command: GameCommand) => void;
-type ErrorListener = (error: GameError | { code: 'network' }, command: GameCommand) => void;
+type ErrorListener = (error: RemoteError, command: GameCommand) => void;
 
 const eventListeners = new Set<EventListener>();
 const errorListeners = new Set<ErrorListener>();

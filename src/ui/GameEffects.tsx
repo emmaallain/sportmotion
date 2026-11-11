@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 
 import { playSfx } from '@/audio';
-import type { GameError, GameEvent } from '@/game/engine';
+import type { RemoteError } from '@/data';
+import type { GameEvent } from '@/game/engine';
 import { ALL_MATERIALS } from '@/game/economy';
 import { ERAS } from '@/game/progression';
 import { t } from '@/i18n';
@@ -11,16 +12,17 @@ import { useUi } from '@/state/uiStore';
 
 import { icons } from './theme';
 
-export function errorMessage(error: GameError | { code: 'network' }): string {
+export function errorMessage(error: RemoteError): string {
   switch (error.code) {
     case 'placement':
       return t.errors.placement[error.reason] ?? t.errors.invalid;
     case 'activity_rejected':
       return t.errors.activity[error.reason] ?? t.errors.invalid;
-    case 'network':
-      return t.errors.network;
-    default:
-      return t.errors[error.code];
+    default: {
+      const messages: Record<string, string | object> = t.errors;
+      const message = messages[error.code];
+      return typeof message === 'string' ? message : t.errors.invalid;
+    }
   }
 }
 

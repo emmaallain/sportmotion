@@ -1,0 +1,12 @@
+# Local development: `supabase start`, then `supabase functions serve`.
+project_id = "sportmotion"
+
+[auth]
+# Guests play immediately; they can attach an e-mail later from the profile screen.
+enable_anonymous_sign_ins = true
+
+[functions.validate-activity]
+verify_jwt = true
+
+[functions.game-command]
+verify_jwt = true
