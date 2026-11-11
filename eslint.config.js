@@ -6,6 +6,11 @@ module.exports = defineConfig([
   expoConfig,
   prettierRecommended,
   {
+    // The React Compiler is not enabled in this project; this rule only reports that it would
+    // skip components whose manual memoisation it cannot prove safe.
+    rules: { 'react-hooks/preserve-manual-memoization': 'off' },
+  },
+  {
     ignores: [
       'dist/*',
       '.expo/*',

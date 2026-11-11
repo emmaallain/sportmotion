@@ -5,7 +5,8 @@ import type { GameError, GameEvent } from '@/game/engine';
 import { ALL_MATERIALS } from '@/game/economy';
 import { ERAS } from '@/game/progression';
 import { t } from '@/i18n';
-import { onGameError, onGameEvents } from '@/state/gameStore';
+import { selectEraProgress } from '@/game/engine';
+import { onGameError, onGameEvents, useGame } from '@/state/gameStore';
 import { useUi } from '@/state/uiStore';
 
 import { icons } from './theme';
@@ -104,9 +105,19 @@ export function GameEffects() {
       if (command.type === 'tick' || command.type === 'advance_era') return;
       useUi.getState().pushToast(errorMessage(error), 'warning');
     });
+    // A new era starts by itself as soon as its conditions are met.
+    const advanceIfReady = () => {
+      const { game, hydrated, dispatch } = useGame.getState();
+      if (hydrated && selectEraProgress(game).check.ok) dispatch({ type: 'advance_era' });
+    };
+    advanceIfReady();
+    const offStore = useGame.subscribe((state, previous) => {
+      if (state.game !== previous.game) advanceIfReady();
+    });
     return () => {
       offEvents();
       offErrors();
+      offStore();
     };
   }, []);
   return null;

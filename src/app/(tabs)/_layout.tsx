@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 
 import { t } from '@/i18n';
 import { useGame } from '@/state/gameStore';
+import { useUi } from '@/state/uiStore';
 import { colors, font, icons } from '@/ui/theme';
 
 const icon = (emoji: string) =>
@@ -14,7 +15,9 @@ const icon = (emoji: string) =>
 export default function TabsLayout() {
   const onboardingDone = useGame((s) => s.game.onboardingDone);
   const chestReady = useGame((s) => s.game.days[s.today]?.chest === 'ready');
-  if (!onboardingDone) return <Redirect href="/onboarding" />;
+  const tutorial = useUi((s) => s.tutorial);
+  // The guided placement of the first house happens on the city tab, before onboarding ends.
+  if (!onboardingDone && tutorial === null) return <Redirect href="/onboarding" />;
 
   return (
     <Tabs
