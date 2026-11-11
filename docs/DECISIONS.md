@@ -42,3 +42,11 @@ Chaque ligne : la décision, puis sa justification.
 
 - **Toutes les mutations passent par un réducteur pur** `applyCommand(state, command, ctx)` (`src/game/engine`) — même code en local et dans l'edge function, testable sans React.
 - **Persistance via `GameRepository`** (et non le middleware `persist` de Zustand pour l'état de jeu) — permet de basculer entre AsyncStorage et Supabase ; les réglages (son) utilisent bien `persist` + AsyncStorage.
+
+## Application
+
+- **Skia isolé derrière des imports dynamiques** (`src/render/lazy.tsx`) — sur le web, CanvasKit doit être chargé avant le premier import de Skia ; un point d'entrée web personnalisé cassait le découpage des bundles d'Expo Router (« Requiring unknown module »), l'import paresseux est plus robuste.
+- **Icônes en emoji** (❤️ 🪵 🪨 💧 ⚡ 🔥) — aucune police d'icônes à charger, rendu identique sur web et natif, lisible par les lecteurs d'écran via des libellés explicites.
+- **Panneau « Simuler » toujours visible** (et pas seulement en `__DEV__`) — le simulateur est la source d'activité par défaut du MVP ; sans lui le build web n'est pas jouable. À masquer quand Apple Santé / Health Connect seront branchés.
+- **« Passer au lendemain »** (démo) décale le calendrier du jeu d'un jour pour montrer séries, multiplicateurs et jokers sans attendre minuit ; désactivé en mode Supabase (le serveur valide la date).
+- **Mock Jest maison pour Reanimated** (`__mocks__/react-native-reanimated.tsx`) — le mock officiel de Reanimated 4 exige Worklets natif ou un DOM, absents de Jest.
