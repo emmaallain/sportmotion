@@ -6,6 +6,7 @@ import { applyCommand, createInitialState } from '@/game/engine';
 import type { CommandResult, GameCommand, GameEvent, GameState } from '@/game/engine';
 
 import { currentDayKey } from './clock';
+import { useSettings } from './settingsStore';
 
 type EventListener = (events: GameEvent[], command: GameCommand) => void;
 type ErrorListener = (error: RemoteError, command: GameCommand) => void;
@@ -72,6 +73,8 @@ export const useGame = create<GameStore>((set, get) => ({
 
   hydrate: async (repository = getRepository()) => {
     repo = repository;
+    // The settings hold the demo calendar offset: they must be read before the first tick.
+    await Promise.resolve(useSettings.persist.rehydrate()).catch(() => undefined);
     let loaded: GameState | null = null;
     try {
       loaded = await repository.load();

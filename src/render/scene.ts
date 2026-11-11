@@ -112,7 +112,9 @@ export function buildCityScene(city: CityState, options: CitySceneOptions = {}):
 /** Translucent footprint: green when the spot is valid, red otherwise. */
 export function footprintOps(x: number, y: number, w: number, h: number, valid: boolean): DrawOp[] {
   const color = valid ? '#4F9A4B' : '#C2473D';
-  return new IsoPen().tile(x, y, x + w, y + h, 0.02, alpha(color, 0.45), color).ops;
+  // slightly larger than the footprint so it stays visible around the sprite
+  const g = 0.14;
+  return new IsoPen().tile(x - g, y - g, x + w + g, y + h + g, 0.02, alpha(color, 0.5), color).ops;
 }
 
 export function selectionOps(x: number, y: number, w: number, h: number): DrawOp[] {

@@ -81,20 +81,22 @@ export default function CityScreen() {
     [city, hiddenId, canBuyPlot],
   );
 
-  const placementValid =
-    placement !== null &&
-    placingItem !== undefined &&
-    placement.x !== null &&
-    placement.y !== null &&
-    canPlace(
-      city,
-      getCityItem,
-      placingItem,
-      placement.x,
-      placement.y,
-      placement.rot,
-      hiddenId ?? undefined,
-    ).ok;
+  const placementCheck =
+    placement !== null && placingItem !== undefined && placement.x !== null && placement.y !== null
+      ? canPlace(
+          city,
+          getCityItem,
+          placingItem,
+          placement.x,
+          placement.y,
+          placement.rot,
+          hiddenId ?? undefined,
+        )
+      : null;
+  const placementValid = placementCheck?.ok === true;
+  // Why the ghost is red, in words (colour alone is not enough).
+  const placementProblem =
+    placementCheck && !placementCheck.ok ? t.errors.placement[placementCheck.reason] : undefined;
 
   const ghostItemId = placement?.itemId;
   const ghostX = placement?.x ?? null;
@@ -255,9 +257,15 @@ export default function CityScreen() {
           <View style={styles.barHeader}>
             <View style={styles.flex}>
               <Text style={styles.barTitle}>{t.city.placing(t.items[placingItem.id] ?? '')}</Text>
-              <Text style={styles.barHint}>
-                {isRoadMode ? t.city.roadHint : t.city.placingHint}
-              </Text>
+              {placementProblem && !isRoadMode ? (
+                <Text style={styles.barProblem} accessibilityLiveRegion="polite">
+                  ⚠️ {placementProblem}
+                </Text>
+              ) : (
+                <Text style={styles.barHint}>
+                  {isRoadMode ? t.city.roadHint : t.city.placingHint}
+                </Text>
+              )}
             </View>
             {placement.mode === 'new' ? (
               <CostRow cost={placingItem.cost} balances={game.balances} />
@@ -445,5 +453,6 @@ const styles = StyleSheet.create({
   barHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   barTitle: { fontSize: font.label, fontWeight: '800', color: colors.text },
   barHint: { fontSize: font.body, color: colors.textMuted },
+  barProblem: { fontSize: font.body, color: colors.danger, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm },
 });
