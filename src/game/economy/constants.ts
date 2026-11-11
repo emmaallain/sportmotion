@@ -1,0 +1,58 @@
+import type { ActivityType, BasicMaterials, QuestId } from './types';
+
+export const QUEST_GOALS: Record<QuestId, number> = { walk: 5000, sport: 30, stretch: 15 };
+export const QUEST_REWARDS: Record<QuestId, number> = { walk: 50, sport: 50, stretch: 40 };
+export const FULL_DAY_BONUS = 60;
+
+export const EXTRA_STEPS_PER_PULSE = 250;
+export const EXTRA_SPORT_MIN_PER_PULSE = 1;
+export const EXTRA_STRETCH_MIN_PER_PULSE = 1;
+export const EXTRA_STRETCH_MAX_MIN = 15;
+
+export const DAILY_BASE_PULSE_CAP = 400;
+export const DAILY_MATERIAL_CAPS: BasicMaterials = { wood: 25, stone: 12, water: 15, energy: 15 };
+
+export const STEPS_PER_WOOD = 1000;
+export const STRENGTH_MIN_PER_STONE = 5;
+export const STRETCH_MIN_PER_WATER = 3;
+export const CARDIO_MIN_PER_ENERGY = 5;
+
+export const MAX_STEPS_PER_DAY = 50_000;
+export const MAX_SPORT_MIN_PER_DAY = 6 * 60;
+export const WALK_MAX_SPEED_KMH = 9;
+export const RUN_MAX_SPEED_KMH = 25;
+export const MAX_CADENCE_STEPS_PER_MIN = 220;
+export const CADENCE_CHECK_MIN_DURATION = 10;
+
+export const MANUAL_GAIN_FACTOR = 0.5;
+export const MANUAL_MAX_MIN_PER_DAY = 60;
+
+export const MAX_JOKERS = 2;
+export const DAYS_PER_JOKER = 7;
+
+/** Streak thresholds, highest first. */
+export const STREAK_MULTIPLIERS: readonly { minDays: number; multiplier: number }[] = [
+  { minDays: 30, multiplier: 3 },
+  { minDays: 14, multiplier: 2.5 },
+  { minDays: 7, multiplier: 2 },
+  { minDays: 3, multiplier: 1.5 },
+  { minDays: 0, multiplier: 1 },
+];
+
+const STEP_TYPES: readonly ActivityType[] = ['walk', 'run'];
+const SPORT_TYPES: readonly ActivityType[] = [
+  'run',
+  'strength',
+  'cycling',
+  'swimming',
+  'team_sport',
+];
+const CARDIO_TYPES: readonly ActivityType[] = ['run', 'cycling', 'swimming', 'team_sport'];
+const STRETCH_TYPES: readonly ActivityType[] = ['stretch', 'yoga', 'mobility'];
+
+export const countsSteps = (t: ActivityType): boolean => STEP_TYPES.includes(t);
+/** Counts toward the "Bouger" quest (walking has its own quest). */
+export const isSport = (t: ActivityType): boolean => SPORT_TYPES.includes(t);
+export const isCardio = (t: ActivityType): boolean => CARDIO_TYPES.includes(t);
+export const isStrength = (t: ActivityType): boolean => t === 'strength';
+export const isStretch = (t: ActivityType): boolean => STRETCH_TYPES.includes(t);
