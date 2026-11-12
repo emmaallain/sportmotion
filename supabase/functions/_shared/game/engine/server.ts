@@ -41,6 +41,8 @@ const ALLOWED: readonly GameCommand['type'][] = [
   'finish_onboarding',
   'add_activity',
   'open_chest',
+  'harvest',
+  'harvest_all',
   'place_item',
   'move_item',
   'sell_item',

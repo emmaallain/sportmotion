@@ -92,3 +92,12 @@ Chaque ligne : la décision, puis sa justification.
 - **Contrastes vérifiés par un test** (`src/ui/__tests__/contrast.test.ts`, WCAG AA 4,5:1) — plusieurs couleurs de texte ont été foncées après mesure.
 - **Le HUD affiche le multiplicateur appliqué aujourd'hui**, pas celui que la série du jour donnera demain — l'écran Quêtes annonce « ×1,5 dès demain ».
 - **Pull Request non ouverte par l'agent** : le dépôt ne contient que la branche de travail (pas de `main`), et l'environnement a refusé la création de `main` (push sur une autre branche que celle assignée). La description complète est dans `docs/PULL_REQUEST.md`, avec les deux commandes à lancer.
+
+## Récoltes (ajout après le MVP, à la demande)
+
+- **Récoltes déclenchées par l'activité, jamais passives** — un bâtiment ne donne ses matériaux que si sa quête est validée ce jour-là : verger → Marcher (bois) ; champ, poulailler, terrain de foot → Bouger (énergie) ; puits, potager, fontaine → S'étirer (eau) ; grange, moulin → journée complète (bois / pierre / énergie). On reste fidèle à « les ressources ne s'obtiennent qu'en bougeant ».
+- **2 récoltes par jour et par type de bâtiment** (les deux premiers construits) — empêche de couvrir le terrain de champs pour multiplier les gains.
+- **Ce qui n'est pas récolté dans la journée n'est pas conservé** — règle la plus simple ; un bouton « Tout récolter » évite la corvée.
+- **Récoltes hors plafonds journaliers et sans multiplicateur**, comme le coffre : ce sont de petites quantités (1 à 3 unités).
+- **Taux d'XP de construction de l'ère 2 ramené de 1 à 0,75** — les récoltes apportent plus de matériaux, donc plus de constructions ; la simulation redonne ère 1 en 12 jours et ère 2 en 41 jours pour le joueur de référence.
+- **Pas de nouvelle ressource « carottes »** : les récoltes donnent les matériaux existants, pour ne pas ajouter une monnaie de plus au MVP.

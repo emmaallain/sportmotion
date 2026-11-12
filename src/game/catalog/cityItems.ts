@@ -1,12 +1,12 @@
 import type { MaterialId } from '../economy/types';
 import type { EraId } from '../progression/eras';
-import type { CityCategory, CityItem, CityItemKind } from './types';
+import type { CityCategory, CityItem, CityItemKind, Harvest } from './types';
 
 /**
  * XP granted per Pulse spent, by era. Tuned with `npm run simulate` so that a player who
  * completes every day finishes era 1 in ~2 weeks and era 2 in ~6 weeks (see DECISIONS.md).
  */
-export const BUILD_XP_RATE: Record<EraId, number> = { 1: 0.1, 2: 1, 3: 1, 4: 1 };
+export const BUILD_XP_RATE: Record<EraId, number> = { 1: 0.1, 2: 0.75, 3: 0.75, 4: 0.75 };
 
 interface Spec {
   id: string;
@@ -22,6 +22,7 @@ interface Spec {
   rotatable?: boolean;
   maxRooms?: number;
   recipes?: string[];
+  harvest?: Harvest;
 }
 
 function item(spec: Spec): CityItem {
@@ -41,6 +42,7 @@ function item(spec: Spec): CityItem {
     rotatable: spec.rotatable ?? size[0] !== size[1],
     maxRooms: spec.maxRooms ?? 0,
     recipes: spec.recipes ?? [],
+    harvest: spec.harvest,
   };
 }
 
@@ -68,6 +70,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     level: 1,
     pulses: 80,
     materials: { stone: 6 },
+    harvest: { trigger: 'stretch', yield: { water: 2 } },
   }),
   item({
     id: 'field',
@@ -78,6 +81,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     materials: { wood: 4 },
     size: [2, 2],
     tags: ['farm'],
+    harvest: { trigger: 'sport', yield: { energy: 2 } },
   }),
   item({
     id: 'vegetable_garden',
@@ -88,6 +92,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     materials: { wood: 3, water: 2 },
     size: [2, 2],
     tags: ['farm'],
+    harvest: { trigger: 'stretch', yield: { water: 1, energy: 1 } },
   }),
   item({
     id: 'chicken_coop',
@@ -98,6 +103,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     materials: { wood: 8 },
     size: [2, 2],
     tags: ['farm'],
+    harvest: { trigger: 'sport', yield: { energy: 2 } },
   }),
   item({
     id: 'orchard',
@@ -108,6 +114,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     materials: { wood: 6, water: 4 },
     size: [2, 2],
     tags: ['farm'],
+    harvest: { trigger: 'walk', yield: { wood: 2 } },
   }),
   item({
     id: 'barn',
@@ -118,6 +125,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     materials: { wood: 15, stone: 6 },
     size: [3, 2],
     tags: ['farm'],
+    harvest: { trigger: 'full_day', yield: { wood: 1, stone: 1 } },
   }),
   item({
     id: 'windmill',
@@ -127,6 +135,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     pulses: 260,
     materials: { wood: 12, stone: 8 },
     size: [2, 2],
+    harvest: { trigger: 'full_day', yield: { energy: 2, stone: 1 } },
   }),
   decor({ id: 'oak_tree', era: 1, level: 1, pulses: 15, materials: { water: 1 } }),
   decor({ id: 'pine_tree', era: 1, level: 1, pulses: 15, materials: { water: 1 } }),
@@ -213,6 +222,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     pulses: 450,
     materials: { wood: 4, water: 8, energy: 6 },
     size: [4, 3],
+    harvest: { trigger: 'sport', yield: { energy: 3 } },
   }),
   item({
     id: 'school',
@@ -271,6 +281,7 @@ export const CITY_ITEMS: readonly CityItem[] = [
     pulses: 220,
     materials: { stone: 4, water: 10 },
     size: [2, 2],
+    harvest: { trigger: 'stretch', yield: { water: 2 } },
   }),
   decor({
     id: 'playground',

@@ -284,6 +284,7 @@ class Sim {
       ];
       for (const activity of activities) this.send({ type: 'add_activity', activity });
       this.send({ type: 'open_chest' });
+      this.send({ type: 'harvest_all' });
     }
     const goalsDone = this.pursueGoals();
     if (goalsDone) this.buyExtras();

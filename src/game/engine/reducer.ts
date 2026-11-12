@@ -13,6 +13,7 @@ import type { BasicMaterials, MaterialId, Materials, QuestId } from '../economy/
 import { checkEraAdvance, lockReason } from '../progression/eras';
 import { levelFromXp } from '../progression/levels';
 import type { CommandContext, CommandResult, GameCommand, GameError, GameEvent } from './commands';
+import { harvestYield, readyHarvests } from './harvest';
 import { DAY_HISTORY_LENGTH, SELL_REFUND_RATE, STARTER_BONUS, emptyDay } from './state';
 import type { Balances, DayRecord, GameState } from './state';
 
@@ -196,6 +197,33 @@ function run(
         ...state,
         balances: { ...state.balances, materials: addMaterials(state.balances.materials, loot) },
         days: { ...state.days, [ctx.today]: { ...day, chest: 'opened', chestLoot: loot } },
+      });
+    }
+
+    case 'harvest':
+    case 'harvest_all': {
+      const day = state.days[ctx.today];
+      const ready = readyHarvests(state, ctx.today);
+      const picked = command.type === 'harvest' ? ready.filter((p) => p.id === command.id) : ready;
+      if (!day || picked.length === 0) return fail({ code: 'nothing_to_harvest' });
+      const materials = harvestYield(picked);
+      events.push({ type: 'harvested', count: picked.length, materials });
+      return done({
+        ...state,
+        balances: {
+          ...state.balances,
+          materials: addMaterials(state.balances.materials, materials),
+        },
+        days: {
+          ...state.days,
+          [ctx.today]: {
+            ...day,
+            harvested: [
+              ...(day.harvested ?? []),
+              ...picked.map((p) => ({ id: p.id, itemId: p.itemId })),
+            ],
+          },
+        },
       });
     }
 

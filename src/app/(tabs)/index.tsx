@@ -15,18 +15,19 @@ import {
   plotRect,
 } from '@/game/city';
 import type { Rotation } from '@/game/city';
-import { SELL_REFUND_RATE, canAfford } from '@/game/engine';
+import { ALL_MATERIALS } from '@/game/economy';
+import { SELL_REFUND_RATE, canAfford, readyHarvests } from '@/game/engine';
 import { t } from '@/i18n';
 import { IsoMap } from '@/render/lazy';
 import type { IsoMapHandle } from '@/render/lazy';
-import { CITY_VIEW, buildCityScene, ghostOps, selectionOps } from '@/render/scene';
+import { CITY_VIEW, buildCityScene, ghostOps, harvestBadgeOps, selectionOps } from '@/render/scene';
 import { useGame } from '@/state/gameStore';
 import { useUi } from '@/state/uiStore';
 import { CraftDialog } from '@/ui/CraftDialog';
 import { Screen } from '@/ui/Screen';
 import { Button, CostRow } from '@/ui/components';
 import { ConfirmDialog } from '@/ui/dialogs';
-import { TOUCH, colors, font, radius, spacing } from '@/ui/theme';
+import { TOUCH, colors, font, icons, radius, spacing } from '@/ui/theme';
 
 let idCounter = 0;
 const newId = (prefix: string) =>
@@ -55,6 +56,7 @@ function ZoomButton({
 
 export default function CityScreen() {
   const game = useGame((s) => s.game);
+  const today = useGame((s) => s.today);
   const dispatch = useGame((s) => s.dispatch);
   const placement = useUi((s) => s.placement);
   const selectedId = useUi((s) => s.selectedId);
@@ -98,6 +100,14 @@ export default function CityScreen() {
   const placementProblem =
     placementCheck && !placementCheck.ok ? t.errors.placement[placementCheck.reason] : undefined;
 
+  // Buildings whose harvest is ready (their quest is validated today).
+  const ready = useMemo(() => readyHarvests(game, today), [game, today]);
+  const harvestDay = game.days[today];
+  const selectedHarvest = selectedItem?.harvest;
+  const selectedReady = selected !== undefined && ready.some((p) => p.id === selected.id);
+  const selectedHarvested =
+    selected !== undefined && (harvestDay?.harvested ?? []).some((h) => h.id === selected.id);
+
   const ghostItemId = placement?.itemId;
   const ghostX = placement?.x ?? null;
   const ghostY = placement?.y ?? null;
@@ -111,13 +121,21 @@ export default function CityScreen() {
     if (ghost && ghostX !== null && ghostY !== null) {
       return ghostOps(ghost.sprite, ghost.size, ghostX, ghostY, ghostRot, placementValid);
     }
+    const badges = ready.flatMap((placed) => {
+      const readyItem = getCityItem(placed.itemId);
+      if (!readyItem?.harvest) return [];
+      const [w, h] = footprint(readyItem.size, placed.rot);
+      const material = ALL_MATERIALS.find((m) => (readyItem.harvest?.yield[m] ?? 0) > 0);
+      return harvestBadgeOps(placed.x, placed.y, w, h, colors.materials[material ?? 'wood'] ?? '');
+    });
     const item = selectedItemId ? getCityItem(selectedItemId) : undefined;
     if (item) {
       const [w, h] = footprint(item.size, selectedRot);
-      return selectionOps(selectedX, selectedY, w, h);
+      return [...selectionOps(selectedX, selectedY, w, h), ...badges];
     }
-    return undefined;
+    return badges.length > 0 ? badges : undefined;
   }, [
+    ready,
     ghostItemId,
     ghostX,
     ghostY,
@@ -245,6 +263,18 @@ export default function CityScreen() {
           </View>
         ) : null}
 
+        {ready.length > 0 && !placement && !selected ? (
+          <View style={styles.harvest} pointerEvents="box-none">
+            <Button
+              small
+              testID="harvest-all"
+              icon="🧺"
+              label={t.city.harvestAll(ready.length)}
+              onPress={() => dispatch({ type: 'harvest_all' })}
+            />
+          </View>
+        ) : null}
+
         {tutorial === 'place_house' ? (
           <View style={styles.tutorial} pointerEvents="none">
             <Text style={styles.tutorialText}>👆 {t.onboarding.tutorialPlace}</Text>
@@ -316,7 +346,32 @@ export default function CityScreen() {
             </Text>
             <Button small variant="ghost" label={t.common.close} onPress={() => select(null)} />
           </View>
+          {selectedHarvest && !selectedReady ? (
+            <Text style={styles.barHint}>
+              {selectedHarvested
+                ? `✓ ${t.city.harvestDone}`
+                : t.city.harvestWaiting(
+                    selectedHarvest.trigger === 'full_day'
+                      ? t.quests.fullDayShort
+                      : t.quests[selectedHarvest.trigger],
+                  )}
+            </Text>
+          ) : null}
           <View style={styles.actions}>
+            {selectedReady && selectedHarvest ? (
+              <Button
+                small
+                testID="harvest-item"
+                icon="🧺"
+                label={`${t.city.harvest} ${ALL_MATERIALS.filter(
+                  (m) => (selectedHarvest.yield[m] ?? 0) > 0,
+                )
+                  .map((m) => `+${selectedHarvest.yield[m]} ${icons.materials[m]}`)
+                  .join(' ')}`}
+                onPress={() => dispatch({ type: 'harvest', id: selected.id })}
+                style={styles.flex}
+              />
+            ) : null}
             {selectedItem.maxRooms > 0 ? (
               <Button
                 small
@@ -426,6 +481,7 @@ const styles = StyleSheet.create({
   },
   zoomGlyph: { fontSize: 20, fontWeight: '700', color: colors.text },
   plot: { position: 'absolute', left: spacing.md, top: spacing.md },
+  harvest: { position: 'absolute', left: spacing.md, bottom: spacing.md },
   tutorial: {
     position: 'absolute',
     left: spacing.lg,

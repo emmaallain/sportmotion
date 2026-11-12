@@ -117,6 +117,22 @@ export function footprintOps(x: number, y: number, w: number, h: number, valid: 
   return new IsoPen().tile(x - g, y - g, x + w + g, y + h + g, 0.02, alpha(color, 0.5), color).ops;
 }
 
+/** Small bubble floating above a building whose harvest is ready. */
+export function harvestBadgeOps(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+): DrawOp[] {
+  const pen = new IsoPen();
+  const at = [x + w / 2, y + h / 2, 1.55] as const;
+  pen.line([at[0], at[1], 1.15], at, '#FFFFFF', 3);
+  pen.ellipse(at, 13, 13, '#FFFFFF', '#3B6340');
+  pen.ellipse(at, 8, 8, color);
+  return pen.ops;
+}
+
 export function selectionOps(x: number, y: number, w: number, h: number): DrawOp[] {
   const pen = new IsoPen();
   pen.tile(x - 0.06, y - 0.06, x + w + 0.06, y + h + 0.06, 0.02, alpha('#FFFFFF', 0.28), '#FFFFFF');

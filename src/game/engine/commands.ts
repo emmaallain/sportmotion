@@ -19,6 +19,9 @@ export type GameCommand =
   | { type: 'finish_onboarding' }
   | { type: 'add_activity'; activity: Activity }
   | { type: 'open_chest' }
+  /** Collects the harvest of one building whose quest is validated today. */
+  | { type: 'harvest'; id: string }
+  | { type: 'harvest_all' }
   | { type: 'place_item'; id: string; itemId: string; x: number; y: number; rot: Rotation }
   | { type: 'move_item'; id: string; x: number; y: number; rot: Rotation }
   | { type: 'sell_item'; id: string }
@@ -62,6 +65,7 @@ export type GameEvent =
   | { type: 'joker_used'; count: number }
   | { type: 'streak_broken' }
   | { type: 'chest_opened'; loot: ChestLoot }
+  | { type: 'harvested'; count: number; materials: Partial<Record<MaterialId, number>> }
   | { type: 'purchased'; pulses: number; xp: number }
   | { type: 'sold'; pulses: number }
   | { type: 'crafted'; material: MaterialId; quantity: number }
@@ -75,6 +79,7 @@ export type GameError =
   | { code: 'activity_rejected'; reason: RejectionReason }
   | { code: 'not_found' }
   | { code: 'no_chest' }
+  | { code: 'nothing_to_harvest' }
   | { code: 'max_plots' }
   | { code: 'max_rooms' }
   | { code: 'room_owned' }

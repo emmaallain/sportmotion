@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CITY_CATEGORIES, CITY_ITEMS, getCityItem } from '@/game/catalog';
 import type { CityCategory, CityItem } from '@/game/catalog';
 import { suggestSpot } from '@/game/city';
+import { ALL_MATERIALS } from '@/game/economy';
 import { canAfford, selectLevel } from '@/game/engine';
 import { ERAS, lockReason } from '@/game/progression';
 import type { LockReason } from '@/game/progression';
@@ -79,6 +80,19 @@ function ItemCard({ item }: { item: CityItem }) {
               {item.requiresRoad ? ` · ${t.shop.needsRoad}` : ''}
               {item.maxRooms > 0 ? ` · ${t.shop.rooms(item.maxRooms)}` : ''}
             </Text>
+            {item.harvest ? (
+              <Text style={styles.harvest}>
+                🧺{' '}
+                {t.shop.harvest(
+                  ALL_MATERIALS.filter((m) => (item.harvest?.yield[m] ?? 0) > 0)
+                    .map((m) => `+${item.harvest?.yield[m]} ${icons.materials[m]}`)
+                    .join(' '),
+                  item.harvest.trigger === 'full_day'
+                    ? t.quests.fullDayShort
+                    : t.quests[item.harvest.trigger],
+                )}
+              </Text>
+            ) : null}
           </>
         )}
       </View>
@@ -175,4 +189,5 @@ const styles = StyleSheet.create({
   lockedText: { color: colors.textMuted },
   lock: { fontSize: font.body, color: colors.textMuted, fontWeight: '600' },
   meta: { fontSize: font.small, color: colors.textMuted },
+  harvest: { fontSize: font.small, color: colors.primaryDark, fontWeight: '600' },
 });

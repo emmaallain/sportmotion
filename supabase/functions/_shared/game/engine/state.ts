@@ -31,6 +31,8 @@ export interface DayRecord {
   completed: boolean;
   chest: 'none' | 'ready' | 'opened';
   chestLoot?: ChestLoot;
+  /** Buildings already harvested today (absent in saves made before harvests existed). */
+  harvested?: { id: string; itemId: string }[];
 }
 
 export interface Balances {

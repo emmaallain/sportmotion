@@ -1,4 +1,4 @@
-import type { MaterialId } from '../economy/types';
+import type { MaterialId, QuestId } from '../economy/types';
 import type { EraId } from '../progression/eras';
 
 export interface Cost {
@@ -16,6 +16,18 @@ export const CITY_CATEGORIES: readonly CityCategory[] = [
 ];
 
 export type CityItemKind = 'road' | 'building' | 'decor';
+
+/** What ripens a building: one of the daily quests, or the complete day. */
+export type HarvestTrigger = QuestId | 'full_day';
+
+/**
+ * Harvest: the building yields materials once its trigger is validated today. Nothing grows
+ * without movement — the harvest is a reward for the activity, never a passive income.
+ */
+export interface Harvest {
+  trigger: HarvestTrigger;
+  yield: Partial<Record<MaterialId, number>>;
+}
 
 export interface CityItem {
   id: string;
@@ -39,6 +51,8 @@ export interface CityItem {
   maxRooms: number;
   /** Recipes that can be crafted in this building. */
   recipes: readonly string[];
+  /** Materials this building yields when its quest is validated (see `Harvest`). */
+  harvest?: Harvest;
 }
 
 export type RoomType = 'living_room' | 'kitchen' | 'bedroom' | 'bathroom';

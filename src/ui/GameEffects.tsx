@@ -74,6 +74,15 @@ function handleEvent(event: GameEvent): void {
         ),
       });
       break;
+    case 'harvested':
+      playSfx('place');
+      ui.pushToast(
+        `🧺 ${t.city.harvested} ${ALL_MATERIALS.filter((m) => (event.materials[m] ?? 0) > 0)
+          .map((m) => `+${event.materials[m]} ${icons.materials[m]}`)
+          .join('  ')}`,
+        'success',
+      );
+      break;
     case 'purchased':
       playSfx('purchase');
       break;
