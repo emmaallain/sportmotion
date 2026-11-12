@@ -39,7 +39,7 @@ export const ACTIVITY_TYPES: readonly ActivityType[] = [
   'team_sport',
 ];
 
-export type ActivitySource = 'mock' | 'manual' | 'healthkit' | 'health_connect';
+export type ActivitySource = 'mock' | 'manual' | 'healthkit' | 'health_connect' | 'strava';
 
 export interface Activity {
   id: string;

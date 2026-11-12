@@ -13,13 +13,13 @@ import { processRequest, reviveState } from './game/engine/server.ts';
 import type { GameState } from './game/engine/state.ts';
 import { levelFromXp } from './game/progression/levels.ts';
 
-const CORS = {
+export const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function json(status: number, body: unknown): Response {
+export function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -143,40 +143,49 @@ export interface HandlerOptions {
   admin?: SupabaseClient;
 }
 
-export async function handle(req: Request, options: HandlerOptions = {}): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json(405, { ok: false, error: { code: 'bad_request' } });
+/** Service-role client from the function's environment. */
+export function adminClient(): SupabaseClient | null {
+  const url = Deno.env.get('SUPABASE_URL');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !serviceKey) return null;
+  return createClient(url, serviceKey, { auth: { persistSession: false } });
+}
 
-  let admin = options.admin;
-  if (!admin) {
-    const url = Deno.env.get('SUPABASE_URL');
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!url || !serviceKey) {
-      return json(500, { ok: false, error: { code: 'server_misconfigured' } });
-    }
-    admin = createClient(url, serviceKey, { auth: { persistSession: false } });
-  }
-
-  // Who is calling? The JWT is verified by Supabase Auth, never trusted from the body.
+/** Who is calling? The JWT is verified by Supabase Auth, never trusted from the body. */
+export async function authenticate(req: Request, admin: SupabaseClient): Promise<string | null> {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-  const { data: auth, error: authError } = await admin.auth.getUser(token);
-  if (authError || !auth?.user) return json(401, { ok: false, error: { code: 'unauthorized' } });
-  const userId = auth.user.id;
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  return error || !data?.user ? null : data.user.id;
+}
 
-  let request: unknown;
-  try {
-    request = await req.json();
-  } catch {
-    return json(400, { ok: false, error: { code: 'bad_request' } });
-  }
-
-  const env = {
+export function serverEnv() {
+  return {
     now: Date.now(),
     rand: Math.random,
     // Demo projects only. Never enable in production: simulated activities are free Pulses.
     allowMockActivities: Deno.env.get('ALLOW_MOCK_ACTIVITIES') === 'true',
   };
+}
 
+/** What `compute` must return: an HTTP status and a body carrying the resulting state. */
+export interface Computed {
+  status: number;
+  body: { ok: boolean; state: GameState } & Record<string, unknown>;
+}
+
+/**
+ * Loads the player's state, lets `compute` derive the next one, and stores it with an
+ * optimistic lock (retried when another request wrote in between). Also refreshes the
+ * read-model tables. `reset` wipes them first (new game).
+ */
+export async function transact(
+  admin: SupabaseClient,
+  userId: string,
+  today: string,
+  compute: (stored: unknown) => Computed,
+  reset = false,
+): Promise<Response> {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const { data: row, error: readError } = await admin
       .from('game_states')
@@ -185,11 +194,7 @@ export async function handle(req: Request, options: HandlerOptions = {}): Promis
       .maybeSingle();
     if (readError) return json(500, { ok: false, error: { code: 'storage' } });
 
-    // "reset" is an account action, not a game command: it starts a brand new game.
-    const reset = (request as { action?: unknown } | null)?.action === 'reset';
-    const response = reset
-      ? processRequest(null, { command: { type: 'tick' }, today: (request as { today?: unknown }).today }, env)
-      : processRequest(row?.state ?? null, request, env, options.only);
+    const response = compute(reset ? null : (row?.state ?? null));
     if (response.status !== 200 || !response.body.ok) return json(response.status, response.body);
 
     const before = reviveState(row?.state ?? null);
@@ -210,12 +215,13 @@ export async function handle(req: Request, options: HandlerOptions = {}): Promis
         .from('game_states')
         .insert({ user_id: userId, state: next, version: 1, updated_at: updatedAt });
       // A unique violation means another request created the row first: retry on top of it.
-      if (error && error.code !== '23505') return json(500, { ok: false, error: { code: 'storage' } });
+      if (error && error.code !== '23505') {
+        return json(500, { ok: false, error: { code: 'storage' } });
+      }
       saved = !error;
     }
     if (!saved) continue; // someone else wrote in between: replay on the fresh state
 
-    const today = (request as { today: string }).today;
     if (reset) {
       await Promise.all([
         admin.from('buildings').delete().eq('user_id', userId),
@@ -227,4 +233,36 @@ export async function handle(req: Request, options: HandlerOptions = {}): Promis
     return json(200, response.body);
   }
   return json(409, { ok: false, error: { code: 'conflict' } });
+}
+
+export async function handle(req: Request, options: HandlerOptions = {}): Promise<Response> {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return json(405, { ok: false, error: { code: 'bad_request' } });
+
+  const admin = options.admin ?? adminClient();
+  if (!admin) return json(500, { ok: false, error: { code: 'server_misconfigured' } });
+  const userId = await authenticate(req, admin);
+  if (!userId) return json(401, { ok: false, error: { code: 'unauthorized' } });
+
+  let request: unknown;
+  try {
+    request = await req.json();
+  } catch {
+    return json(400, { ok: false, error: { code: 'bad_request' } });
+  }
+
+  const env = serverEnv();
+  const today = (request as { today?: unknown } | null)?.today;
+  // "reset" is an account action, not a game command: it starts a brand new game.
+  const reset = (request as { action?: unknown } | null)?.action === 'reset';
+  return transact(
+    admin,
+    userId,
+    typeof today === 'string' ? today : '',
+    (stored) =>
+      reset
+        ? processRequest(null, { command: { type: 'tick' }, today }, env)
+        : processRequest(stored, request, env, options.only),
+    reset,
+  );
 }

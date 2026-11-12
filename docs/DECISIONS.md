@@ -101,3 +101,19 @@ Chaque ligne : la décision, puis sa justification.
 - **Récoltes hors plafonds journaliers et sans multiplicateur**, comme le coffre : ce sont de petites quantités (1 à 3 unités).
 - **Taux d'XP de construction de l'ère 2 ramené de 1 à 0,75** — les récoltes apportent plus de matériaux, donc plus de constructions ; la simulation redonne ère 1 en 12 jours et ère 2 en 41 jours pour le joueur de référence.
 - **Pas de nouvelle ressource « carottes »** : les récoltes donnent les matériaux existants, pour ne pas ajouter une monnaie de plus au MVP.
+
+## Build natif, santé et Strava (ajouts après le MVP, à la demande)
+
+- **`@kingstinct/react-native-healthkit` (iOS) et `react-native-health-connect` (Android)** — modules maintenus, compatibles avec la nouvelle architecture, avec plugins Expo. Chargés par un `require` protégé dans des fichiers `.ios.ts` / `.android.ts` : dans Expo Go et sur le web, le pont est absent et l'app continue de fonctionner.
+- **Lecture seule** : aucune autorisation d'écriture demandée (`NSHealthUpdateUsageDescription` désactivé), livraison en arrière-plan désactivée — on ne demande que ce dont le jeu a besoin.
+- **Identifiant `com.sportmotion.app` provisoire** — à remplacer par le vôtre avant le premier build (expliqué dans `docs/NATIVE_BUILD.md`).
+- **Synchronisation à l'ouverture et au retour au premier plan**, pas en arrière-plan — suffisant pour un jeu qu'on ouvre pour construire, et bien plus simple à faire valider par Apple.
+- **Erreurs silencieuses pendant une synchronisation automatique** — re-proposer une activité déjà connue ne doit pas afficher de message.
+- **Strava uniquement en mode en ligne** — le secret client ne peut pas être embarqué dans l'app ; en local, passer par Santé (Strava sait y écrire ses séances).
+- **Le serveur lit Strava lui-même** et la source `strava` est refusée si elle vient d'un appareil — c'est la seule source d'activité réellement infalsifiable.
+- **Retour OAuth par une fonction serveur** (domaine Supabase) puis redirection vers l'app, avec un jeton `state` à usage unique valable 10 minutes et une liste blanche d'adresses de retour — évite les schémas d'URL personnalisés côté Strava et les redirections ouvertes.
+- **Jetons Strava illisibles pour le client** (droits au niveau des colonnes) ; un athlète Strava = un seul compte.
+- **Portée `activity:read_all`** — sans elle, les activités privées (réglage fréquent) n'apparaîtraient pas, ce qui serait incompréhensible pour le joueur.
+- **Pas estimés depuis la distance** pour la marche et la course venues de Strava ; activité saisie à la main dans Strava = saisie manuelle (50 %).
+- **Seules les activités du jour sont importées**, comme pour toutes les sources — rattraper la veille demanderait de rouvrir une journée déjà soldée (série, coffre).
+- **Rien de tout cela n'a pu être testé en réel** (ni appareil, ni compte Apple, ni identifiants Strava, ni projet Supabase) : la configuration native est validée par `expo prebuild`, les ponts par le typage contre les vraies API, Strava par un faux serveur.

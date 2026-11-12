@@ -58,6 +58,7 @@ export const fr = {
     manual: 'Saisie manuelle',
     healthkit: 'Apple Santé',
     health_connect: 'Health Connect',
+    strava: 'Strava',
   } as Record<string, string>,
   hud: {
     streak: (n: number) => (n > 1 ? `${n} jours` : `${n} jour`),
@@ -305,6 +306,7 @@ export const fr = {
     sourceDisconnect: 'Déconnecter',
     sourceSync: 'Synchroniser',
     sourceConnected: 'Connectée',
+    sourceOff: 'Non disponible ici',
     sourceNeedsBuild: 'Nécessite la version installée de l’app (pas Expo Go ni le web)',
     sourceOtherPlatform: 'Indisponible sur cet appareil',
     sourceRefused:
@@ -314,6 +316,13 @@ export const fr = {
         ? 'Synchronisé : rien de nouveau.'
         : `Synchronisé : ${n} activité${n > 1 ? 's' : ''} ajoutée${n > 1 ? 's' : ''}.`,
     sourceLastSync: (time: string) => `Dernière synchronisation : ${time}`,
+    stravaLocal: 'Strava nécessite le mode en ligne (serveur SportMotion configuré).',
+    stravaHint:
+      'Vos activités Strava du jour sont importées à chaque ouverture de l’app. Lecture seule.',
+    stravaConnectedAs: (name: string) => `Compte Strava : ${name}`,
+    stravaConnected: 'Strava est connecté.',
+    stravaDenied: 'Connexion à Strava annulée.',
+    stravaError: 'La connexion à Strava a échoué. Réessayez dans un instant.',
     healthHint:
       'Lecture seule : pas, distance et séances du jour. Les séances Strava enregistrées dans Santé sont comptées aussi.',
     account: 'Compte',

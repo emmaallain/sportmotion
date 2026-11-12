@@ -25,7 +25,8 @@ npx expo start --web
 ```
 
 Aucune configuration : sans variables d'environnement l'app tourne en mode local.
-Vérifications : `npm run check` (typecheck, lint, 237 tests Jest, 12 tests de base de données).
+Vérifications : `npm run check` (typecheck, lint, 269 tests Jest, 16 tests de base de données) et
+`npm run test:edge` (18 tests des fonctions serveur).
 
 ## Ce qui marche
 
@@ -61,6 +62,16 @@ Vérifications : `npm run check` (typecheck, lint, 237 tests Jest, 12 tests de b
   vérifiés par un test, raisons de refus écrites (pas seulement une couleur), tailles de texte
   du système respectées.
 
+## Ajouts après le MVP
+
+- **Récoltes déclenchées par l'activité** : verger, champ, poulailler, potager, puits, grange,
+  moulin, fontaine et terrain de foot donnent des matériaux quand leur quête du jour est
+  validée (2 par type et par jour). Jamais de production passive.
+- **Build natif** : configuration EAS, identifiants, permissions ; guide `docs/NATIVE_BUILD.md`.
+- **Apple Santé et Health Connect** : ponts natifs, connexion depuis le profil, import
+  automatique à l'ouverture.
+- **Strava** : liaison OAuth et import des activités du jour par le serveur (mode en ligne).
+
 ## Équilibrage (`npm run simulate`)
 
 | Profil                                                   | Ère 1    | Ère 2                   |
@@ -88,7 +99,7 @@ Cibles du game design : ~2 semaines et ~6 semaines. Un test Jest verrouille ces 
    prévoyait la consigne de repli.
 3. **XP de construction ajoutée** : acheter un élément rapporte de l'XP (taux 0,1 en ère 1,
    1 à partir de l'ère 2). Sans cela la cible « ère 2 en ~6 semaines » est impossible avec la
-   courbe imposée : il faut 458 XP/jour alors que le plafond d'activité est de 400 (200 pour une
+   courbe imposée (taux 0,1 en ère 1, 0,75 ensuite) : il faut 458 XP/jour alors que le plafond d'activité est de 400 (200 pour une
    journée complète simple). C'est l'écart le plus important par rapport au game design ; à
    valider ou à remplacer par un autre levier.
 4. **Sons jamais écoutés** : l'environnement n'a pas de sortie audio. Niveaux, raccord des
@@ -96,7 +107,10 @@ Cibles du game design : ~2 semaines et ~6 semaines. Un test Jest verrouille ces 
 5. **Supabase jamais exécuté sur un vrai projet** : pas d'identifiants disponibles. La
    migration et la RLS tournent dans un Postgres embarqué (12 tests), les edge functions sous
    Deno avec un Supabase en mémoire (8 tests), le dépôt client avec un faux client.
-6. **iOS / Android non testés** : pas de simulateur. Tout est vérifié sur le web, y compris un
+6. **Santé et Strava jamais exécutés en réel** : ni appareil, ni compte Apple, ni identifiants
+   Strava. Configuration native validée par `expo prebuild`, ponts typés contre les vraies API,
+   Strava testé avec un faux serveur.
+7. **iOS / Android non testés** : pas de simulateur. Tout est vérifié sur le web, y compris un
    parcours automatisé d'une installation vierge jusqu'à l'ère Bourg.
 
 Tous les choix faits en autonomie sont dans `docs/DECISIONS.md`.
@@ -108,7 +122,8 @@ Tous les choix faits en autonomie sont dans `docs/DECISIONS.md`.
 - [ ] Écouter les sons et les remplacer si besoin
 - [ ] Remplacer les sprites générés par les packs Kenney (ou une direction artistique dédiée)
 - [ ] Déployer sur un projet Supabase et valider l'authentification de bout en bout
-- [ ] Brancher Apple Santé / Health Connect (`docs/HEALTH_INTEGRATION.md`), puis masquer le simulateur
+- [ ] Faire le premier build natif et vérifier Apple Santé / Health Connect sur appareil (`docs/NATIVE_BUILD.md`), puis masquer le simulateur
+- [ ] Créer l'application Strava et valider la liaison de bout en bout (`docs/STRAVA.md`)
 - [ ] Valider ou revoir l'XP de construction (point 3)
 - [ ] Rendre les ères Ville et Métropole jouables (verrerie, fonderie, gare, régions)
 - [ ] Alternative à la carte pour les lecteurs d'écran (liste des éléments et placement par coordonnées)

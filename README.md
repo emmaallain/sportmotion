@@ -25,8 +25,9 @@ Aucune configuration n'est nécessaire : sans variables d'environnement, l'app t
 2. Onglet **Activités** → panneau « Simuler » → **Journée complète** : les 3 quêtes se valident.
 3. Onglet **Quêtes** → ouvrir le coffre du jour ; la série passe à 1.
 4. **Passer au lendemain** (panneau « Simuler ») et recommencer : à 3 jours la série donne ×1,5.
-5. Onglet **Ville** → **Construire** : champ, potager, poulailler… Toucher une maison → **Entrer**
-   pour acheter des pièces et des meubles.
+5. Onglet **Ville** → **Construire** : champ, potager, poulailler… Les bâtiments de ferme donnent
+   une **récolte** quand leur quête du jour est validée (bouton « Tout récolter »). Toucher une
+   maison → **Entrer** pour acheter des pièces et des meubles.
 6. Niveau 6 + 3 maisons + les 5 bâtiments de ferme → l'ère **Bourg** se débloque (2ᵉ terrain,
    route goudronnée, briqueterie, école…).
 
@@ -82,13 +83,16 @@ Renseigner `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY` : l'app
 sur Supabase (compte invité anonyme, calcul des gains côté serveur). Mise en place complète
 dans [`docs/BACKEND.md`](docs/BACKEND.md).
 
-## Ce qui est simulé dans le MVP
+## Sources d'activité
 
-- **Les activités** : simulateur + saisie manuelle. Apple Santé et Health Connect sont prêts
-  mais non branchés — voir [`docs/HEALTH_INTEGRATION.md`](docs/HEALTH_INTEGRATION.md).
-- **Le calendrier** peut être avancé (« Passer au lendemain ») pour montrer les séries.
-- **Les sprites et les sons** sont générés par du code (packs Kenney inaccessibles depuis
-  l'environnement de développement) — voir [`assets/CREDITS.md`](assets/CREDITS.md).
+| Source                      | Où                                                                        | État                                       |
+| --------------------------- | ------------------------------------------------------------------------- | ------------------------------------------ |
+| Simulateur, saisie manuelle | partout (web, Expo Go, app installée)                                     | fonctionne                                 |
+| Apple Santé, Health Connect | app installée uniquement — [`docs/NATIVE_BUILD.md`](docs/NATIVE_BUILD.md) | écrit, **non testé sur appareil**          |
+| Strava                      | mode en ligne uniquement — [`docs/STRAVA.md`](docs/STRAVA.md)             | écrit, **non testé contre le vrai Strava** |
+
+Le calendrier peut être avancé (« Passer au lendemain ») pour montrer les séries. Les sprites
+et les sons sont générés par du code — voir [`assets/CREDITS.md`](assets/CREDITS.md).
 
 ## Documentation
 
@@ -96,5 +100,7 @@ dans [`docs/BACKEND.md`](docs/BACKEND.md).
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — choix faits en autonomie, avec leur justification
 - [`docs/PROGRESS.md`](docs/PROGRESS.md) — avancement des jalons
 - [`docs/BACKEND.md`](docs/BACKEND.md) — Supabase : schéma, sécurité, déploiement
-- [`docs/HEALTH_INTEGRATION.md`](docs/HEALTH_INTEGRATION.md) — activer Apple Santé / Health Connect
+- [`docs/NATIVE_BUILD.md`](docs/NATIVE_BUILD.md) — installer l'app sur un iPhone ou un Android
+- [`docs/HEALTH_INTEGRATION.md`](docs/HEALTH_INTEGRATION.md) — Apple Santé / Health Connect
+- [`docs/STRAVA.md`](docs/STRAVA.md) — connecter Strava
 - [`assets/CREDITS.md`](assets/CREDITS.md) — assets et licences

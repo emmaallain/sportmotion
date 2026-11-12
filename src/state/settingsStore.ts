@@ -11,6 +11,9 @@ export interface SettingsState {
   /** The player connected Apple Health / Health Connect on this device. */
   healthEnabled: boolean;
   healthSyncedAt: number | null;
+  /** The player linked a Strava account (online mode). */
+  stravaEnabled: boolean;
+  setStravaEnabled: (enabled: boolean) => void;
   setHealthEnabled: (enabled: boolean) => void;
   setHealthSyncedAt: (at: number) => void;
   setMusicVolume: (v: number) => void;
@@ -31,6 +34,8 @@ export const useSettings = create<SettingsState>()(
       dayOffset: 0,
       healthEnabled: false,
       healthSyncedAt: null,
+      stravaEnabled: false,
+      setStravaEnabled: (stravaEnabled) => set({ stravaEnabled }),
       setHealthEnabled: (healthEnabled) => set({ healthEnabled }),
       setHealthSyncedAt: (healthSyncedAt) => set({ healthSyncedAt }),
       setMusicVolume: (v) => set({ musicVolume: clamp01(v) }),

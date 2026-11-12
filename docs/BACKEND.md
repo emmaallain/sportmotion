@@ -57,8 +57,7 @@ npm install -g supabase            # ou : brew install supabase/tap/supabase
 supabase login
 supabase link --project-ref <ref-du-projet>
 supabase db push                   # applique la migration
-supabase functions deploy validate-activity
-supabase functions deploy game-command
+supabase functions deploy validate-activity game-command
 cp .env.example .env               # puis renseigner l'URL et la clé anon
 npx expo start --web
 ```
@@ -85,11 +84,11 @@ Un test Jest échoue si la copie n'est plus à jour.
 
 ## Tests
 
-| Commande            | Ce qui est vérifié                                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `npm test`          | réducteur serveur (`processRequest`), dépôt Supabase avec un faux client, copie partagée à jour                          |
-| `npm run test:db`   | la vraie migration dans PGlite : contraintes, déclencheur, toutes les policies RLS                                       |
-| `npm run test:edge` | le handler des edge functions sous Deno avec un Supabase en mémoire (auth, verrou optimiste, projections, remise à zéro) |
+| Commande            | Ce qui est vérifié                                                                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`          | réducteur serveur (`processRequest`), dépôt Supabase avec un faux client, copie partagée à jour                                                    |
+| `npm run test:db`   | la vraie migration dans PGlite : contraintes, déclencheur, toutes les policies RLS                                                                 |
+| `npm run test:edge` | les edge functions sous Deno avec un Supabase et un Strava en mémoire (auth, verrou optimiste, projections, remise à zéro, OAuth et import Strava) |
 
 **Limite connue** : rien n'a été exécuté contre un vrai projet Supabase (aucun identifiant
 disponible pendant le développement). Le schéma, la RLS et le handler sont testés en local ;

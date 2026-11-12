@@ -10,3 +10,14 @@ verify_jwt = true
 
 [functions.game-command]
 verify_jwt = true
+
+[functions.strava-connect]
+verify_jwt = true
+
+[functions.strava-sync]
+verify_jwt = true
+
+# Strava redirects the browser here after the consent screen: there is no session token on
+# that request. The single-use `state` value identifies the player instead.
+[functions.strava-callback]
+verify_jwt = false

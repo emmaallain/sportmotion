@@ -5,6 +5,8 @@ import type { GameCommand, GameError, GameEvent } from './commands';
 import { applyCommand } from './reducer';
 import { STATE_VERSION, createInitialState } from './state';
 import type { GameState } from './state';
+import { stravaLocalDay, stravaToActivity } from '../integrations/strava';
+import type { StravaActivity } from '../integrations/strava';
 
 /**
  * Server-side entry point, shared by the Supabase edge functions.
@@ -30,6 +32,7 @@ export type ServerResponse =
       body: { ok: false; error: GameError | { code: ServerErrorCode }; state: GameState };
     };
 
+/** Sources a device may report. `strava` is fetched by the server itself, never accepted here. */
 const SOURCES: readonly ActivitySource[] = ['mock', 'manual', 'healthkit', 'health_connect'];
 const HOUR = 3_600_000;
 
@@ -148,4 +151,48 @@ export function processRequest(
   const result = applyCommand(state, command, { today, rand: env.rand });
   if (!result.ok) return reject(422, result.error);
   return { status: 200, body: { ok: true, state: result.state, events: result.events } };
+}
+
+export interface StravaImportResult {
+  state: GameState;
+  events: GameEvent[];
+  added: number;
+  skipped: number;
+}
+
+/**
+ * Applies activities the server fetched from Strava itself. Only those of the player's
+ * current day are counted (like every other source), and each one at most once.
+ */
+export function importStravaActivities(
+  stored: unknown,
+  activities: readonly StravaActivity[],
+  today: string,
+  env: ServerEnv,
+): StravaImportResult {
+  let state = reviveState(stored);
+  const events: GameEvent[] = [];
+  let added = 0;
+  let skipped = 0;
+  // longest first: when two overlap, the engine keeps the longest
+  const mapped = activities
+    .filter((a) => stravaLocalDay(a) === today)
+    .map(stravaToActivity)
+    .filter((a): a is Activity => a !== null)
+    .sort((a, b) => b.durationMin - a.durationMin);
+  for (const activity of mapped) {
+    const result = applyCommand(
+      state,
+      { type: 'add_activity', activity },
+      { today, rand: env.rand },
+    );
+    if (result.ok) {
+      state = result.state;
+      events.push(...result.events);
+      added += 1;
+    } else {
+      skipped += 1;
+    }
+  }
+  return { state, events, added, skipped };
 }

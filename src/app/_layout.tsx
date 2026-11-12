@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { syncHealth } from '@/activity/healthSync';
+import { syncStrava } from '@/activity/stravaSync';
 import { AudioManager } from '@/audio/AudioManager';
 import { useGame } from '@/state/gameStore';
 import { GameEffects } from '@/ui/GameEffects';
@@ -21,9 +22,12 @@ export default function RootLayout() {
     void hydrate();
   }, [hydrate]);
 
-  // Pull steps and workouts from Apple Health / Health Connect once the game is loaded.
+  // Pull steps and workouts from Apple Health / Health Connect, and today's Strava
+  // activities, once the game is loaded.
   useEffect(() => {
-    if (hydrated) void syncHealth();
+    if (!hydrated) return;
+    void syncHealth();
+    void syncStrava();
   }, [hydrated]);
 
   // The day can change while the app is open or in the background.
@@ -33,6 +37,7 @@ export default function RootLayout() {
       if (state !== 'active') return;
       refreshDay();
       void syncHealth();
+      void syncStrava();
     });
     return () => {
       clearInterval(timer);

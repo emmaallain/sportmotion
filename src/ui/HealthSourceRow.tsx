@@ -74,7 +74,7 @@ export function HealthSourceRow({ platform }: { platform: 'ios' | 'android' }) {
             onPress={() => void connect()}
           />
         ) : (
-          <Text style={[styles.tag, styles.tagOff]}>{t.common.soon}</Text>
+          <Text style={[styles.tag, styles.tagOff]}>{t.profile.sourceOff}</Text>
         )}
       </View>
       {!here ? (

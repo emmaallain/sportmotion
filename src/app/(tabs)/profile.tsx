@@ -1,13 +1,15 @@
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { parseStravaReturn } from '@/activity/stravaSync';
 import { t } from '@/i18n';
 import { useGame } from '@/state/gameStore';
 import { useSettings } from '@/state/settingsStore';
 import { AccountCard } from '@/ui/AccountCard';
 import { HealthSourceRow } from '@/ui/HealthSourceRow';
+import { StravaRow } from '@/ui/StravaRow';
 import { Screen } from '@/ui/Screen';
 import { Body, Button, Card, Title } from '@/ui/components';
 import { ConfirmDialog } from '@/ui/dialogs';
@@ -70,6 +72,8 @@ function VolumeRow({
 
 export default function ProfileScreen() {
   const settings = useSettings();
+  // set by the server when the player comes back from Strava's consent page (web)
+  const { strava } = useLocalSearchParams<{ strava?: string }>();
   const game = useGame((s) => s.game);
   const reset = useGame((s) => s.reset);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -122,6 +126,7 @@ export default function ProfileScreen() {
         ))}
         <HealthSourceRow platform="ios" />
         <HealthSourceRow platform="android" />
+        <StravaRow returned={parseStravaReturn(`?strava=${strava ?? ''}`)} />
       </Card>
 
       <AccountCard />

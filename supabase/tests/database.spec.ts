@@ -294,3 +294,64 @@ describe('row level security — friends (data model prepared for later)', () =>
     expect(await as(CAROL, `select * from public.challenges`)).toEqual([]);
   });
 });
+
+describe('row level security — Strava', () => {
+  it('accepts the strava source for activities written by the server', async () => {
+    await as(
+      null,
+      `insert into public.activities (user_id, id, day, type, source, started_at, duration_min)
+       values ('${ALICE}', 'strava-1', '2026-06-15', 'run', 'strava', now(), 30)`,
+    );
+    await expect(
+      as(
+        null,
+        `insert into public.activities (user_id, id, day, type, source, started_at, duration_min)
+         values ('${ALICE}', 'x', '2026-06-15', 'run', 'garmin', now(), 30)`,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('never exposes the tokens, even to their owner', async () => {
+    await as(
+      null,
+      `insert into public.strava_connections (user_id, athlete_id, athlete_name, access_token, refresh_token, expires_at)
+       values ('${ALICE}', 4242, 'Alice', 'secret-access', 'secret-refresh', 1900000000)`,
+    );
+    expect(
+      await as(
+        ALICE,
+        `select athlete_id, athlete_name, last_sync_at from public.strava_connections`,
+      ),
+    ).toEqual([{ athlete_id: 4242, athlete_name: 'Alice', last_sync_at: null }]);
+    await denied(ALICE, `select access_token from public.strava_connections`);
+    await denied(ALICE, `select refresh_token from public.strava_connections`);
+    await denied(ALICE, `select * from public.strava_connections`);
+    expect(await as(BOB, `select athlete_id from public.strava_connections`)).toEqual([]);
+  });
+
+  it('lets nobody but the server write connections or read pending authorisations', async () => {
+    await denied(ALICE, `update public.strava_connections set athlete_id = 1`);
+    await denied(ALICE, `delete from public.strava_connections`);
+    await denied(
+      BOB,
+      `insert into public.strava_connections (user_id, athlete_id, access_token, refresh_token, expires_at)
+       values ('${BOB}', 4243, 'a', 'b', 1)`,
+    );
+    await as(
+      null,
+      `insert into public.strava_oauth_states (user_id, return_to) values ('${ALICE}', 'sportmotion://strava')`,
+    );
+    await denied(ALICE, `select * from public.strava_oauth_states`);
+    await denied(BOB, `select state from public.strava_oauth_states`);
+  });
+
+  it('links one Strava athlete to one account only', async () => {
+    await expect(
+      as(
+        null,
+        `insert into public.strava_connections (user_id, athlete_id, access_token, refresh_token, expires_at)
+         values ('${BOB}', 4242, 'a', 'b', 1)`,
+      ),
+    ).rejects.toThrow();
+  });
+});

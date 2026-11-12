@@ -17,6 +17,15 @@ Légende : ✅ terminé · 🚧 en cours · ⬜ à faire
 | 11  | Supabase (migration, RLS, edge functions, dépôt, auth)                     | ✅   | PGlite + Deno + faux client ; **pas testé sur un vrai projet**     |
 | 12  | Santé réelle (squelettes + doc)                                            | ✅   | tests des adaptateurs                                              |
 
+## Après le MVP
+
+| Ajout                               | État         | Vérification                                     |
+| ----------------------------------- | ------------ | ------------------------------------------------ |
+| Récoltes déclenchées par l'activité | ✅           | tests + parcours web + simulation                |
+| Build natif (EAS, permissions)      | ✅ configuré | `expo prebuild` ; **aucun build lancé**          |
+| Apple Santé / Health Connect        | ✅ écrit     | tests de la logique ; **non testé sur appareil** |
+| Strava (OAuth + import serveur)     | ✅ écrit     | tests avec faux Strava ; **non testé en réel**   |
+
 ## Reste à faire
 
 Voir la liste dans la description de la Pull Request et dans le README.

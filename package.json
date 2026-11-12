@@ -63,7 +63,7 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run test:db",
     "postinstall": "setup-skia-web public",
     "test:db": "tsx --test supabase/tests/database.spec.ts",
-    "test:edge": "cd supabase/functions && npx --yes deno@2 test --allow-env _shared/handler_test.ts"
+    "test:edge": "cd supabase/functions && npx --yes deno@2 test --allow-env _shared/"
   },
   "private": true,
   "jest": {

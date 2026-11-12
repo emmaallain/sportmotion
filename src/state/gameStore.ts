@@ -37,6 +37,8 @@ export interface GameStore {
   hydrate: (repository?: GameRepository) => Promise<void>;
   /** Applies a command. Returns the local result (optimistic in online mode). */
   dispatch: (command: GameCommand, options?: { silent?: boolean }) => CommandResult;
+  /** Takes a state computed by the server (e.g. after a Strava sync) and its events. */
+  adopt: (state: GameState, events?: GameEvent[]) => void;
   /** Re-reads the calendar and settles missed days. */
   refreshDay: () => void;
   reset: () => Promise<void>;
@@ -146,6 +148,12 @@ export const useGame = create<GameStore>((set, get) => ({
       });
     }
     return result;
+  },
+
+  adopt: (state, events = []) => {
+    set({ game: state });
+    scheduleSave(get);
+    if (events.length > 0) eventListeners.forEach((l) => l(events, { type: 'tick' }));
   },
 
   refreshDay: () => {

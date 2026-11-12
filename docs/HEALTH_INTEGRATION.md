@@ -1,93 +1,67 @@
-# Brancher Apple Santé et Google Health Connect
+# Apple Santé et Google Health Connect
 
-Dans le MVP, les activités viennent du **simulateur** et de la **saisie manuelle**. Les
-adaptateurs santé sont écrits et testés, mais **non activés** : ils demandent des modules
-natifs, donc un _development build_ (impossible dans Expo Go et sur le web).
+SportMotion lit, **en lecture seule**, les pas, la distance et les séances de sport du jour
+dans le magasin de santé du téléphone. Cela ne fonctionne que dans une version installée de
+l'app : voir [`NATIVE_BUILD.md`](NATIVE_BUILD.md). Dans Expo Go et sur le web, les lignes
+« Apple Santé » et « Health Connect » du profil indiquent simplement que ce n'est pas disponible.
 
-## Ce qui existe déjà
+> **État** : tout le code est écrit et la logique (conversion, dédoublonnage, statuts,
+> synchronisation) est testée. Les deux ponts natifs compilent contre les API réelles des
+> modules, mais **n'ont jamais tourné sur un téléphone**. C'est la première chose à vérifier
+> après le premier build.
 
-| Fichier                                 | Rôle                                                                |
-| --------------------------------------- | ------------------------------------------------------------------- |
-| `src/activity/ActivityProvider.ts`      | interface commune à toutes les sources                              |
-| `src/activity/healthMapping.ts`         | conversion séances / pas → activités du jeu (pur, testé)            |
-| `src/activity/HealthKitProvider.ts`     | adaptateur Apple Santé, attend un `HealthKitBridge`                 |
-| `src/activity/HealthConnectProvider.ts` | adaptateur Health Connect, attend un `HealthConnectBridge`          |
-| `src/activity/sync.ts`                  | `syncProvider()` : lit la journée et envoie les activités au moteur |
+## Utilisation
 
-Sans _bridge_, les deux fournisseurs répondent `coming_soon` et ne renvoient **aucune**
-donnée (jamais de données inventées). L'écran Profil les affiche « Bientôt ».
+**Profil → Sources d'activité → Connecter.** Le téléphone affiche sa demande d'autorisation.
+Ensuite, les données du jour sont importées automatiquement à chaque ouverture de l'app et à
+chaque retour au premier plan ; un bouton « Synchroniser » force l'import.
 
-Le moteur n'a rien à changer : une activité `healthkit` ou `health_connect` compte à 100 %
-(la saisie manuelle à 50 %), passe par les mêmes contrôles de plausibilité, et son
-identifiant stable (`healthkit-<uuid>`, `healthkit-steps-<début de l'heure>`) empêche tout
-double comptage lors des synchronisations répétées.
+## Ce qui est lu
 
-## Données lues (lecture seule)
+| Donnée         | Apple Santé                         | Health Connect    | Sert à                                                 |
+| -------------- | ----------------------------------- | ----------------- | ------------------------------------------------------ |
+| Pas, par heure | `HKQuantityTypeIdentifierStepCount` | `Steps` (agrégé)  | quête « Marcher », bois                                |
+| Distance       | `DistanceWalkingRunning`            | `Distance`        | contrôle de vitesse                                    |
+| Séances        | `HKWorkout`                         | `ExerciseSession` | quêtes « Bouger » / « S'étirer », pierre, eau, énergie |
 
-| Donnée         | Apple Santé                         | Health Connect          | Usage                                                  |
-| -------------- | ----------------------------------- | ----------------------- | ------------------------------------------------------ |
-| Pas, par heure | `HKQuantityTypeIdentifierStepCount` | `StepsRecord` (agrégé)  | quête « Marcher », bois                                |
-| Distance       | `distanceWalkingRunning`            | `DistanceRecord`        | contrôle de vitesse                                    |
-| Séances        | `HKWorkoutType`                     | `ExerciseSessionRecord` | quêtes « Bouger » / « S'étirer », pierre, eau, énergie |
+L'app n'écrit jamais dans les données de santé.
 
-Les pas d'une heure qui recoupe une séance enregistrée sont ignorés (ils sont déjà dans la
-séance). L'app n'écrit jamais dans les données de santé.
+## Règles
 
-## Activer Apple Santé (iOS)
+- Une activité venant du téléphone compte à **100 %** (la saisie manuelle à 50 %) et passe par
+  les mêmes contrôles de plausibilité que les autres.
+- **Jamais de double comptage** : chaque séance et chaque heure de pas a un identifiant
+  stable ; les pas d'une heure qui recoupe une séance sont ignorés (ils sont déjà dedans).
+- **Strava et Santé ensemble** : si une même course arrive par les deux, la règle
+  « chevauchement : seule la plus longue compte » n'en garde qu'une.
+- Seules les activités **du jour** sont importées.
+- iOS ne dit pas si la lecture a été refusée : un refus donne simplement « aucune donnée ».
+  Vérifier alors **Réglages → Santé → Accès aux données → SportMotion**.
 
-1. Installer un module HealthKit compatible avec le SDK Expo du projet, par exemple
-   `npx expo install @kingstinct/react-native-healthkit` (vérifier la compatibilité avec la
-   nouvelle architecture au moment de l'intégration).
-2. Dans `app.json` : ajouter le plugin du module, l'_entitlement_ `com.apple.developer.healthkit`
-   et le texte `NSHealthShareUsageDescription` (« SportMotion lit vos pas et vos séances pour
-   faire grandir votre ville. »). Pas de `NSHealthUpdateUsageDescription` : on n'écrit rien.
-3. Écrire `src/activity/bridges/healthKitBridge.ios.ts` qui implémente `HealthKitBridge` :
-   - `isAvailable` → `isHealthDataAvailable()`
-   - `requestAuthorization` → demande de lecture pour pas, distance, séances
-   - `queryWorkouts(from, to)` → séances, converties en `HealthWorkout` (`kind` = nom du
-     `HKWorkoutActivityType`, déjà reconnu par `healthMapping.ts`)
-   - `queryStepBuckets(from, to)` → requête de statistiques par intervalles d'une heure
-4. Dans `src/activity/index.ts`, construire le fournisseur avec le bridge :
-   `new HealthKitProvider(createHealthKitBridge())`.
-5. Appeler `syncProvider(healthKitProvider, currentDayStartMs(), idsDéjàConnus, dispatch)` à
-   l'ouverture de l'app et à chaque retour au premier plan (le `AppState` est déjà écouté dans
-   `src/app/_layout.tsx`).
-6. Construire : `npx expo prebuild` puis `eas build --profile development --platform ios`.
-7. Dans le Profil, remplacer « Bientôt » par un interrupteur qui appelle
-   `requestPermissions()`, et masquer le panneau « Simuler ».
+## Où est le code
 
-iOS ne dit pas si l'utilisateur a refusé la lecture : une autorisation refusée se traduit par
-des résultats vides. Prévoir un message « Aucune donnée reçue — vérifiez Réglages > Santé ».
+| Fichier                                                         | Rôle                                                    |
+| --------------------------------------------------------------- | ------------------------------------------------------- |
+| `src/activity/bridges/healthKit.ios.ts`                         | pont Apple Santé (`@kingstinct/react-native-healthkit`) |
+| `src/activity/bridges/healthConnect.android.ts`                 | pont Health Connect (`react-native-health-connect`)     |
+| `src/activity/bridges/*.ts` (sans suffixe)                      | version vide pour les autres plateformes                |
+| `src/activity/HealthKitProvider.ts`, `HealthConnectProvider.ts` | statuts, autorisations, lecture                         |
+| `src/activity/healthMapping.ts`                                 | conversion séances / pas → activités du jeu             |
+| `src/activity/healthSync.ts`                                    | connexion, synchronisation automatique                  |
+| `src/ui/HealthSourceRow.tsx`                                    | ligne du profil                                         |
+| `app.json`                                                      | description d'usage, permissions, plugins               |
 
-## Activer Health Connect (Android)
+## Limites connues
 
-1. `npx expo install react-native-health-connect expo-build-properties`.
-2. Dans `app.json` : plugin `react-native-health-connect`, `minSdkVersion` 26 via
-   `expo-build-properties`, et les permissions
-   `android.permission.health.READ_STEPS`, `READ_DISTANCE`, `READ_EXERCISE`.
-   Déclarer aussi l'activité de justification des permissions (exigée par Google Play).
-3. Écrire `src/activity/bridges/healthConnectBridge.android.ts` qui implémente
-   `HealthConnectBridge` : `getSdkStatus()` pour `isAvailable`, `requestPermission([...])`,
-   `readRecords('ExerciseSession', …)` et `aggregateGroupByDuration` pour les pas par heure.
-   Le `kind` attendu est le nom de la constante (`EXERCISE_TYPE_RUNNING`…).
-4. Même branchement que pour iOS : `new HealthConnectProvider(createHealthConnectBridge())`,
-   puis `syncProvider(...)`.
-5. `eas build --profile development --platform android`.
-
-Sur Android 13 et antérieurs, Health Connect est une application à installer : si
-`isAvailable()` est faux, proposer le lien vers le Play Store.
-
-## Côté serveur
-
-Avec Supabase, l'edge function `validate-activity` refuse la source `mock` (sauf si
-`ALLOW_MOCK_ACTIVITIES=true`, réservé aux démonstrations). Les sources `healthkit` et
-`health_connect` sont acceptées telles quelles : l'appareil reste déclaratif. Pour aller plus
-loin contre la triche, vérifier l'intégrité de l'app (App Attest / Play Integrity) avant
-d'accepter une activité — non fait dans le MVP.
+- Les ponts ne sont pas testés sur appareil (voir plus haut).
+- Pas de synchronisation en arrière-plan : l'import se fait quand l'app est ouverte.
+- Les activités d'hier non importées avant minuit ne sont pas rattrapées.
+- Avec le backend, le serveur accepte ce que l'appareil déclare. Pour durcir contre la
+  triche : App Attest (iOS) / Play Integrity (Android), non faits.
 
 ## Publication
 
-- **App Store** : la fiche doit expliquer l'usage des données de santé ; elles ne doivent
-  servir ni à la publicité ni à la revente (règle 5.1.3).
-- **Google Play** : remplir le formulaire « Health Connect » et la politique de
-  confidentialité avant toute publication.
+- **App Store** : expliquer l'usage des données de santé ; elles ne doivent servir ni à la
+  publicité ni à la revente (règle 5.1.3).
+- **Google Play** : remplir la déclaration Health Connect et fournir une politique de
+  confidentialité.
