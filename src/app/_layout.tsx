@@ -5,6 +5,7 @@ import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { syncHealth } from '@/activity/healthSync';
 import { AudioManager } from '@/audio/AudioManager';
 import { useGame } from '@/state/gameStore';
 import { GameEffects } from '@/ui/GameEffects';
@@ -20,11 +21,18 @@ export default function RootLayout() {
     void hydrate();
   }, [hydrate]);
 
+  // Pull steps and workouts from Apple Health / Health Connect once the game is loaded.
+  useEffect(() => {
+    if (hydrated) void syncHealth();
+  }, [hydrated]);
+
   // The day can change while the app is open or in the background.
   useEffect(() => {
     const timer = setInterval(refreshDay, 60_000);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refreshDay();
+      if (state !== 'active') return;
+      refreshDay();
+      void syncHealth();
     });
     return () => {
       clearInterval(timer);

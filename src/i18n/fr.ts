@@ -301,6 +301,21 @@ export const fr = {
     silentMode: 'Le mode silencieux du téléphone est respecté.',
     sourcesTitle: 'Sources d’activité',
     sourceActive: 'Active',
+    sourceConnect: 'Connecter',
+    sourceDisconnect: 'Déconnecter',
+    sourceSync: 'Synchroniser',
+    sourceConnected: 'Connectée',
+    sourceNeedsBuild: 'Nécessite la version installée de l’app (pas Expo Go ni le web)',
+    sourceOtherPlatform: 'Indisponible sur cet appareil',
+    sourceRefused:
+      'Accès refusé ou aucune donnée. Vérifiez les autorisations dans les réglages de Santé.',
+    sourceSynced: (n: number) =>
+      n === 0
+        ? 'Synchronisé : rien de nouveau.'
+        : `Synchronisé : ${n} activité${n > 1 ? 's' : ''} ajoutée${n > 1 ? 's' : ''}.`,
+    sourceLastSync: (time: string) => `Dernière synchronisation : ${time}`,
+    healthHint:
+      'Lecture seule : pas, distance et séances du jour. Les séances Strava enregistrées dans Santé sont comptées aussi.',
     account: 'Compte',
     localMode: 'Mode local : vos données restent sur cet appareil.',
     onlineMode: 'Connecté au serveur SportMotion.',

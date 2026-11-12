@@ -8,6 +8,11 @@ export interface SettingsState {
   muted: boolean;
   /** Demo only: days added to the device calendar ("Passer au lendemain"). */
   dayOffset: number;
+  /** The player connected Apple Health / Health Connect on this device. */
+  healthEnabled: boolean;
+  healthSyncedAt: number | null;
+  setHealthEnabled: (enabled: boolean) => void;
+  setHealthSyncedAt: (at: number) => void;
   setMusicVolume: (v: number) => void;
   setSfxVolume: (v: number) => void;
   setMuted: (muted: boolean) => void;
@@ -24,6 +29,10 @@ export const useSettings = create<SettingsState>()(
       sfxVolume: 0.8,
       muted: false,
       dayOffset: 0,
+      healthEnabled: false,
+      healthSyncedAt: null,
+      setHealthEnabled: (healthEnabled) => set({ healthEnabled }),
+      setHealthSyncedAt: (healthSyncedAt) => set({ healthSyncedAt }),
       setMusicVolume: (v) => set({ musicVolume: clamp01(v) }),
       setSfxVolume: (v) => set({ sfxVolume: clamp01(v) }),
       setMuted: (muted) => set({ muted }),

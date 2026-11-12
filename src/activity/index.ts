@@ -1,3 +1,5 @@
+import { createHealthConnectBridge } from './bridges/healthConnect';
+import { createHealthKitBridge } from './bridges/healthKit';
 import { HealthConnectProvider } from './HealthConnectProvider';
 import { HealthKitProvider } from './HealthKitProvider';
 import { ManualActivityProvider } from './ManualActivityProvider';
@@ -18,6 +20,9 @@ export type { HealthConnectBridge } from './HealthConnectProvider';
 export * from './healthMapping';
 export { syncProvider } from './sync';
 
-/** Skeletons: no native bridge is wired in the MVP, so both report "coming soon". */
-export const healthKitProvider = new HealthKitProvider();
-export const healthConnectProvider = new HealthConnectProvider();
+/**
+ * Health providers. The bridges exist only in a native build on the matching platform; in
+ * Expo Go and on the web they are null and the providers report "coming soon".
+ */
+export const healthKitProvider = new HealthKitProvider(createHealthKitBridge());
+export const healthConnectProvider = new HealthConnectProvider(createHealthConnectBridge());

@@ -7,6 +7,7 @@ import { t } from '@/i18n';
 import { useGame } from '@/state/gameStore';
 import { useSettings } from '@/state/settingsStore';
 import { AccountCard } from '@/ui/AccountCard';
+import { HealthSourceRow } from '@/ui/HealthSourceRow';
 import { Screen } from '@/ui/Screen';
 import { Body, Button, Card, Title } from '@/ui/components';
 import { ConfirmDialog } from '@/ui/dialogs';
@@ -73,11 +74,9 @@ export default function ProfileScreen() {
   const reset = useGame((s) => s.reset);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const sources: [string, string, boolean][] = [
-    ['🧪', t.sources.mock ?? '', true],
-    ['✍️', t.sources.manual ?? '', true],
-    ['🍎', t.sources.healthkit ?? '', false],
-    ['💚', t.sources.health_connect ?? '', false],
+  const sources: [string, string][] = [
+    ['🧪', t.sources.mock ?? ''],
+    ['✍️', t.sources.manual ?? ''],
   ];
 
   return (
@@ -113,16 +112,16 @@ export default function ProfileScreen() {
 
       <Card>
         <Text style={styles.cardTitle}>👟 {t.profile.sourcesTitle}</Text>
-        {sources.map(([icon, name, active]) => (
+        {sources.map(([icon, name]) => (
           <View key={name} style={styles.switchRow}>
             <Text style={styles.label}>
               {icon} {name}
             </Text>
-            <Text style={[styles.tag, active ? styles.tagOn : styles.tagSoon]}>
-              {active ? t.profile.sourceActive : t.common.soon}
-            </Text>
+            <Text style={[styles.tag, styles.tagOn]}>{t.profile.sourceActive}</Text>
           </View>
         ))}
+        <HealthSourceRow platform="ios" />
+        <HealthSourceRow platform="android" />
       </Card>
 
       <AccountCard />
@@ -201,6 +200,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tagOn: { backgroundColor: '#DDEBD6', color: colors.primaryDark },
-  tagSoon: { backgroundColor: colors.border, color: colors.text },
   version: { textAlign: 'center' },
 });

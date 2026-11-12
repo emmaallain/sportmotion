@@ -36,7 +36,7 @@ export interface GameStore {
   online: boolean;
   hydrate: (repository?: GameRepository) => Promise<void>;
   /** Applies a command. Returns the local result (optimistic in online mode). */
-  dispatch: (command: GameCommand) => CommandResult;
+  dispatch: (command: GameCommand, options?: { silent?: boolean }) => CommandResult;
   /** Re-reads the calendar and settles missed days. */
   refreshDay: () => void;
   reset: () => Promise<void>;
@@ -90,7 +90,7 @@ export const useGame = create<GameStore>((set, get) => ({
     get().refreshDay();
   },
 
-  dispatch: (command) => {
+  dispatch: (command, options) => {
     const today = currentDayKey();
     const ctx = { today, rand: Math.random };
     const remote = repo?.send?.bind(repo);
@@ -118,7 +118,8 @@ export const useGame = create<GameStore>((set, get) => ({
 
     const result = applyCommand(get().game, command, ctx);
     if (!result.ok) {
-      errorListeners.forEach((l) => l(result.error, command));
+      // Background syncs retry the same activities: their refusals are not worth a message.
+      if (!options?.silent) errorListeners.forEach((l) => l(result.error, command));
       return result;
     }
     if (result.state !== get().game || today !== get().today) {
